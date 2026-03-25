@@ -1,0 +1,42 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+# HARNESS FRONT GUARD: Pre-commit Hook
+# 린터와 포맷 통과 없이는 커밋 불가
+# ═══════════════════════════════════════════════════
+
+echo "🔒 Harness Front Guard: Pre-commit check..."
+
+# Get staged TypeScript/TSX files
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+
+if [ -n "$STAGED_TS" ]; then
+  # 1. ESLint check (zero warnings allowed)
+  echo "  → ESLint checking staged files..."
+  echo "$STAGED_TS" | xargs npx eslint --max-warnings=0
+  ESLINT_EXIT=$?
+
+  if [ $ESLINT_EXIT -ne 0 ]; then
+    echo ""
+    echo "❌ HARNESS BLOCKED: ESLint violations found."
+    echo "   Run 'npm run lint:fix' to auto-fix, then re-stage."
+    exit 1
+  fi
+
+  # 2. Prettier format check
+  echo "  → Prettier checking staged files..."
+  echo "$STAGED_TS" | xargs npx prettier --check
+  PRETTIER_EXIT=$?
+
+  if [ $PRETTIER_EXIT -ne 0 ]; then
+    echo ""
+    echo "❌ HARNESS BLOCKED: Format violations found."
+    echo "   Run 'npm run format' to fix, then re-stage."
+    exit 1
+  fi
+
+  echo "✅ Front Guard: All checks passed."
+else
+  echo "  → No TypeScript files staged. Skipping."
+fi
+
+exit 0

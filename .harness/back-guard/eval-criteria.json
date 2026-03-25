@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "description": "Back Guard: AI 결과물 품질 평가 기준 (조직 맞춤형)",
+  "criteria": [
+    {
+      "name": "Relevance",
+      "nameKo": "연관성",
+      "weight": 0.25,
+      "scale": [0, 5],
+      "description": "Does the output directly address the stated requirement?",
+      "descriptionKo": "요구사항을 정확히 충족하는가? 불필요한 코드가 없는가?",
+      "rubric": {
+        "5": "요구사항을 완벽히 충족. 불필요한 코드 없음",
+        "4": "요구사항을 거의 충족. 극소량의 불필요 코드",
+        "3": "요구사항을 대체로 충족. 약간의 범위 이탈",
+        "2": "요구사항을 부분적으로만 충족. 상당한 범위 이탈",
+        "1": "요구사항과 거의 무관한 코드",
+        "0": "요구사항을 전혀 충족하지 않음"
+      }
+    },
+    {
+      "name": "Faithfulness",
+      "nameKo": "충실도",
+      "weight": 0.30,
+      "scale": [0, 5],
+      "description": "Does the output follow ALL harness rules (CLAUDE.md)?",
+      "descriptionKo": "CLAUDE.md의 모든 규칙(네이밍, 임포트, 멱등성 등)을 준수하는가?",
+      "rubric": {
+        "5": "모든 하네스 규칙 완벽 준수",
+        "4": "규칙 1개 미만 경미한 위반",
+        "3": "규칙 1-2개 경미한 위반 (네이밍, 포맷)",
+        "2": "규칙 3개 이상 위반 또는 구조적 규칙 위반",
+        "1": "다수의 규칙 위반. 하네스 의미 퇴색",
+        "0": "하네스를 완전히 무시"
+      }
+    },
+    {
+      "name": "Correctness",
+      "nameKo": "정확성",
+      "weight": 0.25,
+      "scale": [0, 5],
+      "description": "Is the code correct, type-safe, and handles edge cases?",
+      "descriptionKo": "컴파일되는가? 타입 안전한가? 엣지 케이스를 처리하는가?",
+      "rubric": {
+        "5": "컴파일 깨끗. 모든 엣지 케이스 처리. 버그 없음",
+        "4": "컴파일 깨끗. 주요 엣지 케이스 처리. 경미한 누락",
+        "3": "컴파일 가능. 일반 케이스 처리. 일부 엣지 케이스 누락",
+        "2": "컴파일 경고 존재 또는 논리 버그 포함",
+        "1": "컴파일 에러 존재",
+        "0": "근본적으로 작동하지 않음"
+      }
+    },
+    {
+      "name": "SourceQuality",
+      "nameKo": "소스 품질",
+      "weight": 0.20,
+      "scale": [0, 5],
+      "description": "Is the code readable, maintainable, and well-structured?",
+      "descriptionKo": "가독성이 좋은가? 유지보수 가능한가? 휴먼 리더블한가?",
+      "rubric": {
+        "5": "모범적: 명확한 네이밍, 적절한 추상화, 중복 없음",
+        "4": "우수: 읽기 쉽고 구조 깔끔. 소폭 개선 여지",
+        "3": "보통: 읽을 수 있으나 정리 필요",
+        "2": "미흡: 가독성 떨어지고 로직 복잡",
+        "1": "불량: 이해하기 어려운 구조",
+        "0": "판독 불가"
+      }
+    }
+  ],
+  "passThreshold": 3.2,
+  "passThresholdDescription": "가중 평균 3.2/5.0 이상이면 PASS",
+  "formula": "weighted_average = sum(criterion.score * criterion.weight) for each criterion"
+}

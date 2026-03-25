@@ -1,0 +1,51 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# next.js
+.next/
+out/
+dist/
+
+# production
+build/
+
+# env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# doc pipeline output
+doc-pipeline/output/
+
+# bkit state
+.bkit/
+
+# Claude Code local config
+.claude/
+
+# NVIDIA logs (auto-generated)
+NVIDIA Corporation/
