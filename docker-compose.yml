@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NPM_PROXY: ${NPM_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,host.docker.internal,10.240.248.157}
     depends_on:
       db:
         condition: service_healthy
@@ -10,10 +15,16 @@ services:
       ADMIN_LOGIN_ID: ${ADMIN_LOGIN_ID:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me}
       DATABASE_URL: ${DATABASE_URL:-postgresql://harp:harp@db:5432/harp}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       LLM_API_URL: ${LLM_API_URL:-http://10.240.248.157:8533/v1}
       LLM_MODEL: ${LLM_MODEL:-Qwen/Qwen3-235B-A22B}
       NODE_ENV: production
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,host.docker.internal,10.240.248.157}
+      https_proxy: ${HTTPS_PROXY:-}
+      http_proxy: ${HTTP_PROXY:-}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,host.docker.internal,10.240.248.157}
     ports:
       - "26000:3000"
     restart: unless-stopped
