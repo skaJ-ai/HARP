@@ -1,56 +1,296 @@
+import type { ReactElement } from 'react';
+
 import Link from 'next/link';
 
-const COMPARISON_ROWS = [
+interface HeroStat {
+  description: string;
+  label: string;
+  value: string;
+}
+
+interface ComparisonRow {
+  gauss: string;
+  harp: string;
+  label: string;
+}
+
+interface HowItWorksStep {
+  description: string;
+  step: string;
+  title: string;
+}
+
+interface ValueCard {
+  badge: string;
+  description: string;
+  title: string;
+}
+
+interface TrustSignal {
+  description: string;
+  title: string;
+}
+
+const HEADER_COPY = {
+  brand: 'HARP',
+  primaryAction: {
+    href: '/workspace/new',
+    label: '교육 결과 보고서 만들어 보기',
+  },
+  secondaryAction: {
+    href: '/login',
+    label: '로그인',
+  },
+  subtitle: 'HR AI Report Platform',
+} as const;
+
+const HERO_COPY = {
+  headlineFirstLine: '보고서를 쓰는 데 반나절,',
+  headlineSecondLine: '회사 양식으로 옮기는 데 또 반나절.',
+  label: 'HARP',
+  primaryAction: {
+    href: '/workspace/new',
+    label: '교육 결과 보고서 만들어 보기',
+  },
+  secondaryAction: {
+    href: '/workspace',
+    label: '작업공간 열기',
+  },
+  subtitleFirstLine: 'HARP는 대화만으로 회사 표준 형식의 HR 보고서 초안을 만듭니다.',
+  subtitleSecondLine: '직전에 만든 같은 유형의 보고서가 있으면 자동으로 참고합니다.',
+} as const;
+
+const HERO_STATS: HeroStat[] = [
   {
-    general: '빈 화면에서 직접 프롬프트를 잘 써야 합니다.',
-    harp: '산출물 유형을 고르면 AI가 먼저 질문을 시작합니다.',
-    label: '시작 방식',
+    description: '대화 3분이면 섹션별 초안 완성',
+    label: '보고서 초안 생성',
+    value: '3분',
   },
   {
-    general: '자유 대화라서 빠지는 항목이 생기기 쉽습니다.',
-    harp: '체크리스트 기반 산파술 인터뷰로 누락을 줄입니다.',
-    label: '대화 구조',
+    description: '회사 양식 벗어나지 않는 고정 출력',
+    label: '표준 양식 준수',
+    value: '100%',
   },
   {
-    general: '답변 형식이 매번 달라 보고서로 옮겨 적어야 합니다.',
-    harp: '회사 표준 템플릿 구조로 바로 초안을 만듭니다.',
-    label: '결과물',
-  },
-  {
-    general: '이전 대화가 자산으로 남지 않아 다시 처음부터 시작합니다.',
-    harp: '세션, 근거자료, 산출물이 작업공간에 축적됩니다.',
-    label: '재사용성',
+    description: '직전 동일 유형 산출물을 생성 시 자동 참조',
+    label: '반복 설명 감소',
+    value: '자동 참고',
   },
 ];
 
-const HERO_PROOF_POINTS = ['private-first 작업공간', '표준 산출물 3종', '컨텍스트 재활용'];
+const PAIN_SECTION_COPY = {
+  heading: 'GAUSS로도 보고서를 쓸 수 있지 않나요?',
+  label: 'Why HARP',
+  subtitle: '쓸 수 있습니다. 다만 매번 처음부터, 매번 다른 형식으로, 매번 빠지는 항목이 생깁니다.',
+  tableHeaders: {
+    gauss: 'GAUSS',
+    harp: 'HARP',
+    label: '항목',
+  },
+} as const;
 
-const HOW_IT_WORKS_STEPS = [
+const COMPARISON_ROWS: ComparisonRow[] = [
   {
-    description: '주간 HR 현황 보고, 교육 운영 결과 요약, 제도 검토 초안 중 하나를 고릅니다.',
-    title: '1. 산출물 유형 선택',
+    gauss: '빈 채팅창에 프롬프트를 직접 잘 써야 합니다.',
+    harp: '보고서 유형을 고르면 HARP가 먼저 질문합니다.',
+    label: '시작할 때',
   },
   {
-    description: 'AI가 빠진 항목을 추적하며 질문하고, 필요한 프레임워크를 대화 중 제안합니다.',
-    title: '2. 인터뷰 진행',
+    gauss: '자유 대화라서 무엇을 빠뜨렸는지 모릅니다.',
+    harp: '체크리스트가 내장되어 빠진 항목을 HARP가 추적합니다.',
+    label: '빠지는 항목',
   },
   {
-    description: '오른쪽 캔버스에 섹션별 초안이 쌓이고, 정리하기로 draft를 완성합니다.',
-    title: '3. 초안 생성',
+    gauss: '매번 답변 구조가 달라서 양식에 옮겨 적어야 합니다.',
+    harp: '회사 표준 양식으로 초안이 바로 나옵니다.',
+    label: '결과 형식',
   },
   {
-    description: 'final과 promoted asset으로 승격하며 다음 작업의 참고 자산으로 남깁니다.',
-    title: '4. 자산화',
+    gauss: '이전 대화가 남지 않아 다시 처음부터 설명합니다.',
+    harp: '직전 동일 유형 산출물을 자동으로 참고해 줍니다.',
+    label: '다음 보고서',
+  },
+  {
+    gauss: '답변이 맞는지 틀렸는지 직접 판단해야 합니다.',
+    harp: '섹션마다 confidence·cited 태그가 붙어 약한 부분이 바로 보입니다.',
+    label: '품질 확인',
   },
 ];
 
-const HERO_CHAT_LINES = [
-  '이번 교육은 신임 리더 42명을 대상으로 진행했고 만족도는 4.6점이었습니다.',
-  '사전·사후 테스트는 평균 17% 상승했고, 현업 적용 사례는 9건이 확인됐습니다.',
-  '좋습니다. Kirkpatrick 기준으로 반응, 학습, 행동, 결과를 나눠서 정리하겠습니다.',
+const HOW_IT_WORKS_SECTION_COPY = {
+  heading: '3분이면 초안이 나옵니다',
+  label: 'How It Works',
+  subtitle: '교육 결과 보고를 예로 들면 이렇습니다.',
+} as const;
+
+const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
+  {
+    description:
+      '주간 HR 현황, 교육 운영 결과, 제도 검토 중 하나를 고릅니다. 데이터가 있으면 그대로 붙여넣으세요.',
+    step: '1',
+    title: '유형 선택',
+  },
+  {
+    description:
+      'HARP가 빠진 항목을 질문합니다. 답하다 보면 오른쪽 캔버스에 섹션별 초안이 실시간으로 쌓입니다.',
+    step: '2',
+    title: '대화로 채우기',
+  },
+  {
+    description: '정리하기를 누르면 회사 양식의 초안이 완성됩니다. 수정하고 최종본으로 승격하세요.',
+    step: '3',
+    title: '정리하기 클릭',
+  },
 ];
 
-const HERO_CHECKLIST = ['교육 목적과 대상 정의', '정량 결과 수집', '후속 액션 정리'];
+const VALUE_SECTION_COPY = {
+  heading: 'AI를 잘 쓰는 방법을 배울 필요가 없습니다',
+  label: 'Core Value',
+} as const;
+
+const VALUE_CARDS: ValueCard[] = [
+  {
+    badge: '컨텍스트 설계',
+    description:
+      '작업공간에 세션, 근거자료, 산출물이 보관됩니다. 같은 유형의 보고서를 다시 쓸 때 직전 산출물을 참고해 맥락을 이어갑니다.',
+    title: '매번 같은 설명을 반복하지 않아도 됩니다',
+  },
+  {
+    badge: '방법론 내장',
+    description:
+      '보고서 구조화, 근거 배치, 요약 전략이 시스템에 내장되어 있습니다. 프롬프트를 잘 쓰는 기술이 아니라 도메인 전문성의 코드화입니다.',
+    title: '빠뜨리는 항목 없이 표준 품질이 나옵니다',
+  },
+  {
+    badge: '작업 이력',
+    description:
+      '세션, 근거자료, 산출물이 작업공간에 남습니다. 같은 유형의 보고서를 다시 쓸 때 직전 산출물을 자동으로 참고합니다.',
+    title: '지난번 보고서를 다시 찾을 필요가 없습니다',
+  },
+];
+
+const TRUST_SECTION_COPY = {
+  heading: 'AI는 초안만 씁니다. 최종 판단은 언제나 담당자의 몫입니다.',
+  label: 'Trust',
+} as const;
+
+const TRUST_SIGNALS: TrustSignal[] = [
+  {
+    description:
+      'HARP는 초안을 제안할 뿐입니다. draft → final 승격은 반드시 담당자가 확인한 후에만 가능합니다.',
+    title: '당신이 최종 검토합니다',
+  },
+  {
+    description:
+      '각 섹션에 confidence(확신도)와 cited(근거 유무)가 태깅됩니다. 어디가 약한지 한눈에 보입니다.',
+    title: '근거가 표시됩니다',
+  },
+  {
+    description:
+      'HARP는 보고서 작성 단계만 도와줍니다. 기존 결재선, 공유 방식, 양식 규정은 바뀌지 않습니다.',
+    title: '기존 업무 방식은 그대로입니다',
+  },
+  {
+    description:
+      '현재는 본인 작업만 볼 수 있습니다. 다른 사람의 세션이나 산출물에 접근할 수 없습니다.',
+    title: '작업공간은 개인 전용입니다',
+  },
+];
+
+const FINAL_CTA_COPY = {
+  heading: '교육 결과 보고서 하나만 만들어 보세요',
+  label: 'Get Started',
+  primaryAction: {
+    href: '/workspace/new',
+    label: '교육 결과 보고서 만들어 보기',
+  },
+  secondaryAction: {
+    href: '/login',
+    label: '로그인',
+  },
+  subtitle: '3분이면 첫 초안이 나옵니다. 그다음부터는 작업공간이 기억해 줍니다.',
+} as const;
+
+function getValueBadgeClassName(index: number): string {
+  if (index === 0) {
+    return 'badge-accent';
+  }
+
+  if (index === 1) {
+    return 'badge-teal';
+  }
+
+  return 'badge-success';
+}
+
+function getTrustCardClassName(index: number): string {
+  if (index === 0) {
+    return 'doc-card border-[var(--color-teal)] p-6';
+  }
+
+  return 'doc-card p-6';
+}
+
+function renderHeroStat(stat: HeroStat): ReactElement {
+  return (
+    <article className="doc-card flex flex-col gap-3" key={stat.label}>
+      <p className="meta">{stat.label}</p>
+      <p className="text-3xl font-bold text-[var(--color-accent)]">{stat.value}</p>
+      <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{stat.description}</p>
+    </article>
+  );
+}
+
+function renderComparisonRow(row: ComparisonRow): ReactElement {
+  return (
+    <tr className="border-t border-[var(--color-border-subtle)] align-top" key={row.label}>
+      <td className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">{row.label}</td>
+      <td className="px-5 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
+        {row.gauss}
+      </td>
+      <td className="px-5 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">{row.harp}</td>
+    </tr>
+  );
+}
+
+function renderHowItWorksStep(step: HowItWorksStep): ReactElement {
+  return (
+    <article className="doc-card p-6" key={step.step}>
+      <div className="flex flex-col gap-4">
+        <span className="badge badge-teal w-fit">{`Step ${step.step}`}</span>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xl font-semibold text-[var(--color-text)]">{step.title}</h3>
+          <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{step.description}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function renderValueCard(card: ValueCard, index: number): ReactElement {
+  return (
+    <article className="doc-card p-6" key={card.title}>
+      <div className="flex flex-col gap-4">
+        <span className={`badge ${getValueBadgeClassName(index)} w-fit`}>{card.badge}</span>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xl font-semibold text-[var(--color-text)]">{card.title}</h3>
+          <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{card.description}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function renderTrustSignal(signal: TrustSignal, index: number): ReactElement {
+  return (
+    <article className={getTrustCardClassName(index)} key={signal.title}>
+      <div className="flex flex-col gap-3">
+        <h3 className="text-xl font-semibold text-[var(--color-text)]">{signal.title}</h3>
+        <p className="text-sm leading-6 text-[var(--color-text-secondary)]">{signal.description}</p>
+      </div>
+    </article>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -59,229 +299,140 @@ export default function HomePage() {
         <header className="surface flex flex-col gap-4 px-6 py-4 shadow-[var(--shadow-1)] sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <span className="text-xl font-bold tracking-tight text-[var(--color-accent)]">
-              HARP
+              {HEADER_COPY.brand}
             </span>
-            <p className="text-sm text-[var(--color-text-secondary)]">HR AI Report Platform</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">{HEADER_COPY.subtitle}</p>
           </div>
+
           <div className="flex flex-wrap items-center gap-3">
-            <Link className="btn-secondary focus-ring" href="/login">
-              로그인
+            <Link className="btn-secondary focus-ring" href={HEADER_COPY.secondaryAction.href}>
+              {HEADER_COPY.secondaryAction.label}
             </Link>
-            <Link className="btn-primary focus-ring" href="/signup">
-              시작하기
+            <Link className="btn-primary focus-ring" href={HEADER_COPY.primaryAction.href}>
+              {HEADER_COPY.primaryAction.label}
             </Link>
           </div>
         </header>
 
-        <section className="relative overflow-hidden rounded-[32px] border border-[var(--color-border)] bg-[linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(246,250,255,0.98))] px-8 py-10 shadow-[var(--shadow-4)] lg:px-10 lg:py-12">
+        <section className="surface relative overflow-hidden rounded-[32px] px-8 py-10 shadow-[var(--shadow-4)] lg:px-10 lg:py-12">
           <div className="absolute -right-20 top-10 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(0,191,165,0.18),_transparent_70%)]" />
           <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(15,76,129,0.14),_transparent_70%)]" />
 
-          <div className="relative grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.96fr)]">
+          <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="flex flex-col gap-6">
-              <span className="badge badge-accent w-fit">HR AI Report Platform</span>
+              <span className="section-label">{HERO_COPY.label}</span>
+
               <div className="flex flex-col gap-4">
-                <h1 className="max-w-4xl text-balance text-4xl font-bold leading-tight text-[var(--color-text)] lg:text-6xl">
-                  HR 담당자가 대화만으로 표준 보고서를 만드는 작업공간
+                <h1 className="text-balance text-4xl font-bold leading-tight text-[var(--color-text)] lg:text-6xl">
+                  <span className="block">{HERO_COPY.headlineFirstLine}</span>
+                  <span className="block">{HERO_COPY.headlineSecondLine}</span>
                 </h1>
                 <p className="max-w-3xl text-base leading-8 text-[var(--color-text-secondary)] lg:text-lg">
-                  HARP는 흩어진 HR 자료를 바탕으로 대화를 구조화하고, 문서 캔버스에 초안을
-                  실시간으로 정리하며, 쓸수록 다음 업무에 다시 꺼내 쓸 수 있는 자산을 남깁니다.
+                  <span className="block">{HERO_COPY.subtitleFirstLine}</span>
+                  <span className="block">{HERO_COPY.subtitleSecondLine}</span>
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="bg-[var(--color-bg-elevated)]/80 rounded-[var(--radius-lg)] border border-[var(--color-border)] px-4 py-4 shadow-[var(--shadow-1)]">
-                  <p className="meta">Private Workspace</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    내 작업 맥락과 초안을 private하게 축적합니다.
-                  </p>
-                </div>
-                <div className="bg-[var(--color-bg-elevated)]/80 rounded-[var(--radius-lg)] border border-[var(--color-border)] px-4 py-4 shadow-[var(--shadow-1)]">
-                  <p className="meta">Standard Output</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    보고서 형식이 매번 흔들리지 않도록 템플릿을 고정합니다.
-                  </p>
-                </div>
-                <div className="bg-[var(--color-bg-elevated)]/80 rounded-[var(--radius-lg)] border border-[var(--color-border)] px-4 py-4 shadow-[var(--shadow-1)]">
-                  <p className="meta">Context Reuse</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                    이전 산출물과 근거자료를 다시 불러와 다음 작업을 빠르게 시작합니다.
-                  </p>
-                </div>
-              </div>
-
               <div className="flex flex-wrap gap-3">
-                <Link className="btn-primary focus-ring" href="/signup">
-                  지금 시작하기
+                <Link className="btn-primary focus-ring" href={HERO_COPY.primaryAction.href}>
+                  {HERO_COPY.primaryAction.label}
                 </Link>
-                <Link className="btn-secondary focus-ring" href="/workspace">
-                  작업공간 열기
+                <Link className="btn-secondary focus-ring" href={HERO_COPY.secondaryAction.href}>
+                  {HERO_COPY.secondaryAction.label}
                 </Link>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {HERO_PROOF_POINTS.map((point) => (
-                  <span className="badge badge-neutral" key={point}>
-                    {point}
-                  </span>
-                ))}
               </div>
             </div>
 
-            <div className="surface relative overflow-hidden border-white/80 bg-white/90 p-6 shadow-[var(--shadow-3)]">
-              <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-subtle)] pb-4">
-                <div className="flex flex-col gap-2">
-                  <span className="badge badge-teal w-fit">교육 운영 결과 요약</span>
-                  <h2 className="text-xl font-semibold text-[var(--color-text)]">
-                    인터뷰에서 초안까지 이어지는 하나의 화면
-                  </h2>
-                </div>
-                <span className="badge badge-neutral">draft ready</span>
-              </div>
-
-              <div className="mt-5 flex flex-col gap-4">
-                <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="meta">Interview Feed</p>
-                    <span className="badge badge-accent">AI + 담당자</span>
-                  </div>
-                  <div className="grid gap-3">
-                    {HERO_CHAT_LINES.map((line, index) => (
-                      <div
-                        className={`rounded-[var(--radius-md)] px-4 py-3 text-sm leading-6 ${
-                          index === 2
-                            ? 'border border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-text)]'
-                            : 'bg-[var(--color-accent-light)] text-[var(--color-text)]'
-                        }`}
-                        key={line}
-                      >
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4 shadow-[var(--shadow-1)]">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="meta">Checklist Progress</p>
-                      <span className="badge badge-success">3 / 7 완료</span>
-                    </div>
-                    <div className="grid gap-3">
-                      {HERO_CHECKLIST.map((item) => (
-                        <div
-                          className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-3 py-3"
-                          key={item}
-                        >
-                          <span className="status-dot status-dot-success" />
-                          <span className="text-sm text-[var(--color-text-secondary)]">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(212,228,247,0.3))] p-4 shadow-[var(--shadow-1)]">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="meta">Draft Snapshot</p>
-                      <span className="badge badge-neutral">confidence attached</span>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-4 py-4">
-                        <p className="text-sm font-semibold text-[var(--color-text)]">교육 개요</p>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                          대상 42명, 만족도 4.6점, 사전·사후 테스트 평균 17% 상승.
-                        </p>
-                      </div>
-                      <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-4 py-4">
-                        <p className="text-sm font-semibold text-[var(--color-text)]">결과 요약</p>
-                        <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                          반응과 학습 수준은 검증되었고, 행동/결과 지표는 후속 추적 과제로 정리.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <div className="grid gap-4">{HERO_STATS.map(renderHeroStat)}</div>
           </div>
         </section>
 
         <section className="surface flex flex-col gap-6 p-8 shadow-[var(--shadow-2)]">
           <div className="flex flex-col gap-2">
-            <p className="meta">Why HARP</p>
+            <span className="section-label">{PAIN_SECTION_COPY.label}</span>
             <h2 className="text-3xl font-semibold text-[var(--color-text)]">
-              일반 대화형 LLM과 무엇이 다른가
+              {PAIN_SECTION_COPY.heading}
             </h2>
             <p className="max-w-3xl text-sm leading-7 text-[var(--color-text-secondary)]">
-              HARP는 모델을 바꾸는 도구가 아니라, HR 업무에 필요한 질문 순서와 결과물 형식을
-              고정하는 작업 시스템입니다.
+              {PAIN_SECTION_COPY.subtitle}
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)]">
-            <table className="w-full border-collapse text-left">
+          <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border)]">
+            <table className="w-full min-w-[720px] border-collapse text-left">
               <thead>
                 <tr className="bg-[var(--color-bg-sunken)]">
-                  <th className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">항목</th>
                   <th className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">
-                    일반 LLM
+                    {PAIN_SECTION_COPY.tableHeaders.label}
                   </th>
-                  <th className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">HARP</th>
+                  <th className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">
+                    {PAIN_SECTION_COPY.tableHeaders.gauss}
+                  </th>
+                  <th className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">
+                    {PAIN_SECTION_COPY.tableHeaders.harp}
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {COMPARISON_ROWS.map((row) => (
-                  <tr
-                    className="border-t border-[var(--color-border-subtle)] align-top"
-                    key={row.label}
-                  >
-                    <td className="px-5 py-4 text-sm font-semibold text-[var(--color-text)]">
-                      {row.label}
-                    </td>
-                    <td className="px-5 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                      {row.general}
-                    </td>
-                    <td className="px-5 py-4 text-sm leading-6 text-[var(--color-text-secondary)]">
-                      {row.harp}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              <tbody>{COMPARISON_ROWS.map(renderComparisonRow)}</tbody>
             </table>
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-4">
-          {HOW_IT_WORKS_STEPS.map((step) => (
-            <article className="doc-card flex flex-col gap-3" key={step.title}>
-              <span className="badge badge-accent w-fit">{step.title}</span>
-              <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
-                {step.description}
-              </p>
-            </article>
-          ))}
+        <section className="surface flex flex-col gap-6 p-8 shadow-[var(--shadow-2)]">
+          <div className="flex flex-col gap-2">
+            <span className="section-label">{HOW_IT_WORKS_SECTION_COPY.label}</span>
+            <h2 className="text-3xl font-semibold text-[var(--color-text)]">
+              {HOW_IT_WORKS_SECTION_COPY.heading}
+            </h2>
+            <p className="max-w-3xl text-sm leading-7 text-[var(--color-text-secondary)]">
+              {HOW_IT_WORKS_SECTION_COPY.subtitle}
+            </p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {HOW_IT_WORKS_STEPS.map(renderHowItWorksStep)}
+          </div>
+        </section>
+
+        <section className="surface flex flex-col gap-6 p-8 shadow-[var(--shadow-2)]">
+          <div className="flex flex-col gap-2">
+            <span className="section-label">{VALUE_SECTION_COPY.label}</span>
+            <h2 className="text-3xl font-semibold text-[var(--color-text)]">
+              {VALUE_SECTION_COPY.heading}
+            </h2>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">{VALUE_CARDS.map(renderValueCard)}</div>
         </section>
 
         <section className="surface flex flex-col gap-5 p-8 shadow-[var(--shadow-2)]">
-          <div className="flex flex-col gap-3">
-            <p className="meta">Core Principle</p>
-            <h2 className="text-3xl font-semibold text-[var(--color-text)]">
-              HARP는 LLM을 믿는 제품이 아니라 컨텍스트를 설계하는 제품입니다
+          <div className="flex flex-col gap-2">
+            <span className="section-label">{TRUST_SECTION_COPY.label}</span>
+            <h2 className="max-w-4xl text-3xl font-semibold text-[var(--color-text)]">
+              {TRUST_SECTION_COPY.heading}
             </h2>
-            <p className="max-w-4xl text-sm leading-7 text-[var(--color-text-secondary)]">
-              모델이 기억하는 것이 아니라, 작업공간이 이전 세션, 근거자료, 산출물을 저장하고 필요한
-              만큼 다시 꺼내 공급합니다. 그래서 대화는 원재료가 되고, final과 promoted asset은 다음
-              업무의 출발점이 됩니다.
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">{TRUST_SIGNALS.map(renderTrustSignal)}</div>
+        </section>
+
+        <section className="surface flex flex-col gap-5 p-8 shadow-[var(--shadow-2)]">
+          <div className="flex flex-col gap-2">
+            <span className="section-label">{FINAL_CTA_COPY.label}</span>
+            <h2 className="text-3xl font-semibold text-[var(--color-text)]">
+              {FINAL_CTA_COPY.heading}
+            </h2>
+            <p className="max-w-3xl text-sm leading-7 text-[var(--color-text-secondary)]">
+              {FINAL_CTA_COPY.subtitle}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link className="btn-primary focus-ring" href="/signup">
-              지금 시작하기
+            <Link className="btn-teal focus-ring" href={FINAL_CTA_COPY.primaryAction.href}>
+              {FINAL_CTA_COPY.primaryAction.label}
             </Link>
-            <Link className="btn-secondary focus-ring" href="/workspace">
-              작업공간 보기
+            <Link className="btn-secondary focus-ring" href={FINAL_CTA_COPY.secondaryAction.href}>
+              {FINAL_CTA_COPY.secondaryAction.label}
             </Link>
           </div>
         </section>
