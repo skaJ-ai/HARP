@@ -1,7 +1,14 @@
 import { z } from 'zod';
 
+const EXAMPLE_TEXT_MAX_LENGTH = 5000;
+
 const createSessionRequestSchema = z.object({
-  templateType: z.enum(['weekly_report', 'training_summary', 'policy_review']),
+  exampleText: z
+    .string()
+    .trim()
+    .max(EXAMPLE_TEXT_MAX_LENGTH, `예시 문서는 ${EXAMPLE_TEXT_MAX_LENGTH}자 이내로 입력해 주세요.`)
+    .optional(),
+  templateType: z.enum(['analysis', 'planning', 'result', 'status']),
 });
 
 const createSourceRequestSchema = z.object({
@@ -10,4 +17,4 @@ const createSourceRequestSchema = z.object({
   type: z.enum(['text', 'table', 'data']).optional(),
 });
 
-export { createSessionRequestSchema, createSourceRequestSchema };
+export { EXAMPLE_TEXT_MAX_LENGTH, createSessionRequestSchema, createSourceRequestSchema };

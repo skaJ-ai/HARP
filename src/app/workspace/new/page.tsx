@@ -9,9 +9,11 @@ export default async function WorkspaceNewPage() {
   await requireAuthenticatedPageUser();
 
   const templates = getTemplateCatalog().map((template) => ({
+    badge: template.badge,
     checklist: template.checklist,
     description: template.description,
     estimatedMinutes: template.estimatedMinutes,
+    exampleTags: template.exampleTags,
     methodologyMap: template.methodologyMap,
     name: template.name,
     sections: template.sections,
@@ -27,11 +29,11 @@ export default async function WorkspaceNewPage() {
               대시보드로
             </Link>
           }
-          description="산출물 유형을 고르면 HARP가 먼저 질문을 시작하고, 인터뷰 캔버스와 문서 초안이 함께 열립니다."
+          description="유형을 고른 뒤 예시 문서를 붙여넣을 수도 있습니다. 예시가 없어도 바로 시작할 수 있습니다."
           eyebrow="New Session"
           meta={
             <>
-              <span className="badge badge-accent">표준 템플릿 3종</span>
+              <span className="badge badge-accent">표준 템플릿 4종</span>
               <span className="badge badge-neutral">private workspace only</span>
             </>
           }

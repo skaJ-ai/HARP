@@ -19,7 +19,7 @@ type MessageRole = 'assistant' | 'system' | 'user';
 type SessionChecklist = Record<string, boolean>;
 type SessionStatus = 'completed' | 'in_progress';
 type SourceType = 'data' | 'table' | 'text';
-type TemplateType = 'policy_review' | 'training_summary' | 'weekly_report';
+type TemplateType = 'analysis' | 'planning' | 'result' | 'status';
 type UserRole = 'admin' | 'user';
 
 interface DeliverableSection {
@@ -87,6 +87,7 @@ const sessionsTable = pgTable(
   {
     checklist: jsonb('checklist').$type<SessionChecklist>().default({}).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    exampleText: text('example_text'),
     id: uuid('id').defaultRandom().primaryKey(),
     status: text('status').$type<SessionStatus>().default('in_progress').notNull(),
     templateType: text('template_type').$type<TemplateType>().notNull(),

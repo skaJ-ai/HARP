@@ -350,6 +350,22 @@
     color: var(--color-text-secondary);
     border: 1px solid var(--color-border);
   }
+  .badge-amber {
+    background-color: var(--color-amber-light, #fffbeb);
+    color: var(--color-amber, #d97706);
+  }
+  .badge-blue {
+    background-color: var(--color-blue-light, #eff6ff);
+    color: var(--color-blue, #2563eb);
+  }
+  .badge-gray {
+    background-color: var(--color-gray-light, #f9fafb);
+    color: var(--color-gray, #6b7280);
+  }
+  .badge-green {
+    background-color: var(--color-green-light, #f0fdf4);
+    color: var(--color-green, #16a34a);
+  }
 
   /* Breadcrumb / Process Flow */
   .process-flow {

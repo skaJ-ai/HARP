@@ -2,6 +2,7 @@ import type { SessionChecklist, SessionStatus, SourceType, TemplateType } from '
 import type { DeliverableSummary } from '@/lib/deliverables/types';
 import type {
   MethodologyCard,
+  TemplateBadge,
   TemplateChecklistItem,
   TemplateMethodologyMap,
   TemplateSectionDefinition,
@@ -56,9 +57,11 @@ interface SessionSourceSummary {
 }
 
 interface SessionTemplateSummary {
+  badge: TemplateBadge;
   checklist: TemplateChecklistItem[];
   description: string;
   estimatedMinutes: number;
+  exampleTags: string[];
   methodologyMap: TemplateMethodologyMap;
   name: string;
   sections: TemplateSectionDefinition[];
@@ -80,6 +83,7 @@ interface SessionSummary {
 interface SessionDetail extends SessionSummary {
   canGenerate: boolean;
   canvas: SessionCanvasState;
+  exampleText: string | null;
   latestDeliverable: DeliverableSummary | null;
   messages: SessionChatMessage[];
   readinessPercent: number;
@@ -88,6 +92,7 @@ interface SessionDetail extends SessionSummary {
 }
 
 interface CreateSessionRequestBody {
+  exampleText?: string;
   templateType: TemplateType;
 }
 

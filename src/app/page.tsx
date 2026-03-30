@@ -3,7 +3,8 @@ import type { ReactElement } from 'react';
 import Link from 'next/link';
 
 interface TemplatePreview {
-  badge: string;
+  badgeClassName: string;
+  badgeLabel: string;
   description: string;
   estimatedMinutes: number;
   name: string;
@@ -30,31 +31,42 @@ const HERO_COPY = {
     href: '/workspace/new',
     label: '새 작업 시작',
   },
-  subtitle: '유형을 고르면 HARP가 먼저 질문합니다. 3분이면 초안이 나옵니다.',
+  subtitle:
+    '유형을 고르고 예시 문서를 붙여넣으면 HARP가 먼저 질문합니다. 없으면 그대로 시작해도 됩니다.',
 } as const;
 
 const TEMPLATE_PREVIEWS: TemplatePreview[] = [
   {
-    badge: '주간 보고',
-    description: '한 주의 주요 이슈, 진행 현황, 지표, 다음 주 계획을 빠르게 정리합니다.',
-    estimatedMinutes: 6,
-    name: '주간 HR 현황 보고',
-    type: 'weekly_report',
+    badgeClassName: 'badge-amber',
+    badgeLabel: '🔍 인사이트',
+    description: '데이터를 해석하고 시사점을 뽑을 때 쓰는 분석 중심 템플릿입니다.',
+    estimatedMinutes: 10,
+    name: '분석 보고 작성하기',
+    type: 'analysis',
   },
   {
-    badge: '교육 결과',
-    description:
-      '교육 개요부터 Kirkpatrick 4단계, 인사이트와 개선 제안까지 표준 구조로 정리합니다.',
+    badgeClassName: 'badge-blue',
+    badgeLabel: '→ 미래',
+    description: '새로운 걸 제안하거나 검토할 때 쓰는 기획 중심 템플릿입니다.',
+    estimatedMinutes: 10,
+    name: '기획(안) 작성하기',
+    type: 'planning',
+  },
+  {
+    badgeClassName: 'badge-green',
+    badgeLabel: '← 과거',
+    description: '한 일의 성과를 정리할 때 쓰는 결과 중심 템플릿입니다.',
     estimatedMinutes: 8,
-    name: '교육 운영 결과 요약',
-    type: 'training_summary',
+    name: '결과 보고 정리하기',
+    type: 'result',
   },
   {
-    badge: '제도 검토',
-    description: '배경, 현행 분석, 비교안, 리스크, 제안까지 한 번에 정리하는 정책 검토 초안입니다.',
-    estimatedMinutes: 12,
-    name: '제도 검토 초안',
-    type: 'policy_review',
+    badgeClassName: 'badge-gray',
+    badgeLabel: '● 현재',
+    description: '지금 상태를 간결하게 보고할 때 쓰는 현황 중심 템플릿입니다.',
+    estimatedMinutes: 5,
+    name: '현황 보고 작성하기',
+    type: 'status',
   },
 ];
 
@@ -69,7 +81,7 @@ function renderTemplatePreview(template: TemplatePreview): ReactElement {
     <article className="doc-card flex h-full flex-col gap-4 p-6" key={template.type}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <span className="badge badge-accent w-fit">{template.badge}</span>
+          <span className={`badge ${template.badgeClassName} w-fit`}>{template.badgeLabel}</span>
           <h2 className="text-xl font-semibold text-[var(--color-text)]">{template.name}</h2>
         </div>
         <span className="badge badge-neutral shrink-0">{`${template.estimatedMinutes}분`}</span>
@@ -122,7 +134,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-3">
+        <section className="grid gap-4 lg:grid-cols-2">
           {TEMPLATE_PREVIEWS.map(renderTemplatePreview)}
         </section>
 

@@ -1,6 +1,7 @@
 import type { SessionChecklist, TemplateType } from '@/lib/db/schema';
 
 type MethodologyCategory = 'analysis' | 'structure' | 'validation';
+type TemplateBadgeColor = 'amber' | 'blue' | 'gray' | 'green';
 
 interface TemplateSectionDefinition {
   description: string;
@@ -23,6 +24,11 @@ interface MethodologyCard {
   name: string;
 }
 
+interface TemplateBadge {
+  color: TemplateBadgeColor;
+  label: string;
+}
+
 interface TemplateMethodologyMap {
   analysis: MethodologyCard[];
   structure: MethodologyCard[];
@@ -35,9 +41,11 @@ interface TemplatePromptSet {
 }
 
 interface TemplateDefinition {
+  badge: TemplateBadge;
   checklist: TemplateChecklistItem[];
   description: string;
   estimatedMinutes: number;
+  exampleTags: string[];
   methodologyMap: TemplateMethodologyMap;
   name: string;
   sections: TemplateSectionDefinition[];
@@ -174,7 +182,6 @@ const ACTION_TITLE = METHODOLOGY_LIBRARY.action_title!;
 const AS_IS_TO_BE = METHODOLOGY_LIBRARY.as_is_to_be!;
 const FORCE_FIELD = METHODOLOGY_LIBRARY.force_field!;
 const HR_ANALYTICS = METHODOLOGY_LIBRARY.hr_analytics!;
-const KIRKPATRICK = METHODOLOGY_LIBRARY.kirkpatrick!;
 const LOGIC_MODEL = METHODOLOGY_LIBRARY.logic_model!;
 const MECE = METHODOLOGY_LIBRARY.mece!;
 const PYRAMID_SCQA = METHODOLOGY_LIBRARY.pyramid_scqa!;
@@ -182,97 +189,125 @@ const SDS = METHODOLOGY_LIBRARY.sds!;
 const SO_WHAT_WHY_SO = METHODOLOGY_LIBRARY.so_what_why_so!;
 
 const RAW_TEMPLATE_DEFINITIONS: TemplateDefinitionMap = {
-  policy_review: {
+  analysis: {
+    badge: { color: 'amber', label: '🔍 인사이트' },
     checklist: CHECKLIST_ITEMS,
-    description: '배경, 현행 분석, 비교안, 리스크, 제안까지 한 번에 정리하는 정책 검토 초안입니다.',
-    estimatedMinutes: 12,
+    description: '데이터를 해석하고 시사점을 뽑을 때',
+    estimatedMinutes: 10,
+    exampleTags: ['이직 원인 분석', '보상 벤치마크', '만족도 조사 해석', '역량 갭 분석'],
+    methodologyMap: {
+      analysis: [HR_ANALYTICS, AS_IS_TO_BE],
+      structure: [PYRAMID_SCQA],
+      validation: [SO_WHAT_WHY_SO],
+    },
+    name: '분석 보고 작성하기',
+    sections: [
+      {
+        description: '왜 이 분석이 필요한지 배경을 정리합니다.',
+        name: '분석 배경',
+        required: true,
+      },
+      {
+        description: '어떤 데이터를 어떻게 분석했는지 정리합니다.',
+        name: '분석 범위와 방법',
+        required: true,
+      },
+      { description: '핵심 데이터와 발견된 패턴을 정리합니다.', name: '주요 발견', required: true },
+      {
+        description: '데이터가 의미하는 것과 시사점을 해석합니다.',
+        name: '해석과 시사점',
+        required: true,
+      },
+      {
+        description: '분석 결과에 기반한 권고 사항을 제안합니다.',
+        name: '권고 사항',
+        required: true,
+      },
+      { description: '원본 데이터와 출처를 정리합니다.', name: '근거 자료', required: true },
+    ],
+    starterMessage:
+      '분석 보고서를 함께 작성하겠습니다. 어떤 주제를 분석하려고 하시나요? 분석 배경부터 알려주세요.',
+    type: 'analysis',
+  },
+  planning: {
+    badge: { color: 'blue', label: '→ 미래' },
+    checklist: CHECKLIST_ITEMS,
+    description: '새로운 걸 제안하거나 검토할 때',
+    estimatedMinutes: 10,
+    exampleTags: ['복리후생 도입안', '채용 전략 수립', '제도 개편 검토', '교육 프로그램 설계'],
     methodologyMap: {
       analysis: [AS_IS_TO_BE, FORCE_FIELD],
       structure: [PYRAMID_SCQA],
       validation: [MECE],
     },
-    name: '제도 검토 초안',
+    name: '기획(안) 작성하기',
     sections: [
-      { description: '검토 배경과 문제의식을 간결하게 정리합니다.', name: '배경', required: true },
+      { description: '왜 이 기획이 필요한지 배경을 정리합니다.', name: '배경', required: true },
+      { description: '지금 어떤 상태인지 현황을 분석합니다.', name: '현황 분석', required: true },
       {
-        description: '현재 제도 상태와 운영상의 이슈를 분석합니다.',
-        name: '현행 제도 분석',
+        description: '무엇을 제안하는지 구체적으로 정리합니다.',
+        name: '제안 내용',
         required: true,
       },
-      { description: '대안별 특징과 선택지를 비교합니다.', name: '비교안', required: true },
       {
-        description: '도입 시 예상되는 저항, 운영 부담, 법/제도 리스크를 정리합니다.',
-        name: '리스크',
+        description: '어떻게, 언제 실행하는지 계획을 세웁니다.',
+        name: '실행 계획',
         required: true,
       },
-      { description: '권고안과 필요한 후속 액션을 제안합니다.', name: '제안', required: true },
       {
-        description: '내부 규정, 데이터, 벤치마크 등 근거를 정리합니다.',
-        name: '근거 자료',
+        description: '어떤 결과를 예상하는지 효과를 정리합니다.',
+        name: '기대 효과',
         required: true,
       },
+      { description: '참고 데이터와 출처를 정리합니다.', name: '근거 자료', required: true },
     ],
     starterMessage:
-      '제도 검토 초안을 함께 정리해보겠습니다. 먼저 어떤 제도를 왜 검토하려는지부터 들려주세요.',
-    type: 'policy_review',
+      '기획(안) 작성을 함께 시작하겠습니다. 어떤 주제의 기획안을 준비하시나요? 배경부터 들려주세요.',
+    type: 'planning',
   },
-  training_summary: {
+  result: {
+    badge: { color: 'green', label: '← 과거' },
     checklist: CHECKLIST_ITEMS,
-    description:
-      '교육 개요부터 Kirkpatrick 4단계, 인사이트와 개선 제안까지 표준 구조로 정리합니다.',
+    description: '한 일의 성과를 정리할 때',
     estimatedMinutes: 8,
+    exampleTags: ['교육 결과 보고', '채용 실적 정리', '제도 시행 성과', '행사 결과 요약'],
     methodologyMap: {
-      analysis: [LOGIC_MODEL],
-      structure: [KIRKPATRICK],
-      validation: [SO_WHAT_WHY_SO],
+      analysis: [LOGIC_MODEL, HR_ANALYTICS],
+      structure: [SDS],
+      validation: [SO_WHAT_WHY_SO, ACTION_TITLE],
     },
-    name: '교육 운영 결과 요약',
+    name: '결과 보고 정리하기',
     sections: [
-      { description: '과정명, 대상, 기간, 목적을 정리합니다.', name: '교육 개요', required: true },
       {
-        description: '참여율, 만족도, 반응 데이터를 정리합니다.',
-        name: 'Level 1 — 반응',
+        description: '무엇을, 왜, 언제 했는지 기본 정보를 정리합니다.',
+        name: '개요',
         required: true,
       },
-      {
-        description: '학습 내용과 평가 결과를 요약합니다.',
-        name: 'Level 2 — 학습',
-        required: true,
-      },
-      {
-        description: '현업 적용 계획과 실제 행동 변화를 정리합니다.',
-        name: 'Level 3 — 행동',
-        required: true,
-      },
-      {
-        description: '기대 성과와 측정 지표를 정리합니다.',
-        name: 'Level 4 — 결과',
-        required: true,
-      },
-      {
-        description: '핵심 인사이트와 개선 제안을 정리합니다.',
-        name: '인사이트 + 개선 제안',
-        required: true,
-      },
-      { description: '근거가 된 데이터와 출처를 정리합니다.', name: '근거 자료', required: true },
+      { description: '어떻게 진행됐는지 과정을 요약합니다.', name: '과정 요약', required: true },
+      { description: '핵심 결과와 수치를 정리합니다.', name: '주요 성과', required: true },
+      { description: '성과의 의미와 교훈을 해석합니다.', name: '분석과 인사이트', required: true },
+      { description: '다음에 개선할 점을 제안합니다.', name: '개선 제안', required: true },
+      { description: '데이터와 출처를 정리합니다.', name: '근거 자료', required: true },
     ],
     starterMessage:
-      '교육 운영 결과 요약을 시작하겠습니다. 어떤 교육을 정리하려는지와 기본 개요부터 알려주세요.',
-    type: 'training_summary',
+      '결과 보고를 함께 정리하겠습니다. 어떤 활동의 결과를 정리하시나요? 기본 개요부터 들려주세요.',
+    type: 'result',
   },
-  weekly_report: {
+  status: {
+    badge: { color: 'gray', label: '● 현재' },
     checklist: CHECKLIST_ITEMS,
-    description: '한 주의 주요 이슈, 진행 현황, 지표, 다음 주 계획을 빠르게 정리하는 보고서입니다.',
-    estimatedMinutes: 6,
+    description: '지금 상태를 보고할 때',
+    estimatedMinutes: 5,
+    exampleTags: ['월간 인력현황', '이직률 보고', '채용 파이프라인', 'HR KPI 현황'],
     methodologyMap: {
       analysis: [HR_ANALYTICS],
       structure: [SDS],
       validation: [ACTION_TITLE],
     },
-    name: '주간 HR 현황 보고',
+    name: '현황 보고 작성하기',
     sections: [
       {
-        description: '이번 주에 가장 중요한 이슈와 요약 메시지를 정리합니다.',
+        description: '가장 중요한 이슈와 요약 메시지를 정리합니다.',
         name: '주요 이슈 요약',
         required: true,
       },
@@ -281,21 +316,21 @@ const RAW_TEMPLATE_DEFINITIONS: TemplateDefinitionMap = {
         name: '진행 현황',
         required: true,
       },
-      { description: '주요 수치나 KPI를 정리합니다.', name: '주간 지표', required: true },
+      { description: '핵심 수치와 KPI를 정리합니다.', name: '주요 지표', required: true },
       {
-        description: '다음 주에 이어갈 과업과 일정, 의사결정 포인트를 정리합니다.',
-        name: '다음 주 계획',
+        description: '다음 기간에 이어갈 계획과 의사결정 포인트를 정리합니다.',
+        name: '향후 계획',
         required: true,
       },
       {
-        description: '특이사항, 리스크, 지원 요청 사항을 정리합니다.',
+        description: '리스크, 지원 요청, 특이사항을 정리합니다.',
         name: '특이사항',
         required: true,
       },
     ],
     starterMessage:
-      '주간 HR 현황 보고를 시작하겠습니다. 이번 주에 꼭 담아야 할 주요 이슈부터 말씀해주세요.',
-    type: 'weekly_report',
+      '현황 보고를 시작하겠습니다. 어떤 영역의 현황을 보고하시나요? 주요 이슈부터 말씀해주세요.',
+    type: 'status',
   },
 };
 
@@ -370,6 +405,12 @@ function buildInterviewPrompt(template: Omit<TemplateDefinition, 'systemPrompt'>
     '- 구체화 요청 후에도 비슷한 수준의 답변이 오면, 집요하게 반복하지 말고 현재 답변으로 진행합니다. 체크리스트는 true로 처리합니다.',
     '- 이 규칙은 best effort입니다. 대화 기록을 참고해 이미 같은 항목에서 구체화를 요청했다면 재질문하지 않습니다.',
     '',
+    '[예시 문서 활용 규칙]',
+    '- 사용자가 예시 문서를 제공한 경우, 해당 문서의 문체와 깊이를 참고해 질문 수준을 조절합니다.',
+    '- 예시 문서의 내용을 인터뷰에서 직접 인용하지 않습니다.',
+    '- 예시 문서를 언급할 때는 "제공해 주신 예시를 참고하면..."으로 시작합니다.',
+    '- 예시 문서가 없어도 인터뷰 진행에 지장이 없도록 합니다.',
+    '',
     '[출력 규칙]',
     '- 사용자에게 보이는 본문은 자연스러운 한국어 대화만 작성합니다.',
     '- 본문 뒤에는 숨김 메타데이터 주석을 정확히 두 개만 추가합니다.',
@@ -412,6 +453,11 @@ function buildGeneratePrompt(template: Omit<TemplateDefinition, 'systemPrompt'>)
     '- cited는 true | false만 사용합니다.',
     '- 코드블록, JSON 블록, 서론/결론 문단, 섹션 외 추가 제목을 출력하지 않습니다.',
     '- 데이터가 있으면 수치와 근거를 반영하고, 불충분하면 content 안에 추정임을 드러냅니다.',
+    '',
+    '[예시 문서 참고]',
+    '- 사용자가 제공한 예시 문서가 있으면, 해당 문서의 문체, 분량, 구조를 참고해 작성합니다.',
+    '- 예시 문서의 내용이 아닌 스타일(톤, 깊이, 형식)을 따릅니다.',
+    '- 예시 문서가 없으면 이 규칙을 무시합니다.',
     '[출력 예시]',
     `## ${sectionExample.name}`,
     '<!-- section-meta:{"confidence":"high","cited":true} -->',
@@ -420,25 +466,32 @@ function buildGeneratePrompt(template: Omit<TemplateDefinition, 'systemPrompt'>)
 }
 
 const TEMPLATE_DEFINITIONS: Record<TemplateType, TemplateDefinition> = {
-  policy_review: {
-    ...RAW_TEMPLATE_DEFINITIONS.policy_review,
+  analysis: {
+    ...RAW_TEMPLATE_DEFINITIONS.analysis,
     systemPrompt: {
-      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.policy_review),
-      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.policy_review),
+      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.analysis),
+      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.analysis),
     },
   },
-  training_summary: {
-    ...RAW_TEMPLATE_DEFINITIONS.training_summary,
+  planning: {
+    ...RAW_TEMPLATE_DEFINITIONS.planning,
     systemPrompt: {
-      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.training_summary),
-      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.training_summary),
+      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.planning),
+      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.planning),
     },
   },
-  weekly_report: {
-    ...RAW_TEMPLATE_DEFINITIONS.weekly_report,
+  result: {
+    ...RAW_TEMPLATE_DEFINITIONS.result,
     systemPrompt: {
-      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.weekly_report),
-      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.weekly_report),
+      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.result),
+      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.result),
+    },
+  },
+  status: {
+    ...RAW_TEMPLATE_DEFINITIONS.status,
+    systemPrompt: {
+      generate: buildGeneratePrompt(RAW_TEMPLATE_DEFINITIONS.status),
+      interview: buildInterviewPrompt(RAW_TEMPLATE_DEFINITIONS.status),
     },
   },
 };
@@ -461,6 +514,8 @@ export { createInitialChecklist, getTemplateByType, getTemplateCatalog };
 export type {
   MethodologyCard,
   MethodologyCategory,
+  TemplateBadge,
+  TemplateBadgeColor,
   TemplateChecklistItem,
   TemplateDefinition,
   TemplateMethodologyMap,

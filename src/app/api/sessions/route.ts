@@ -38,9 +38,12 @@ async function POST(request: Request) {
     const parsedRequest = createSessionRequestSchema.safeParse(requestBody);
 
     if (!parsedRequest.success) {
+      const validationMessage =
+        parsedRequest.error.issues[0]?.message ?? '세션 생성 요청이 올바르지 않습니다.';
+
       return NextResponse.json(
         {
-          message: '산출물 유형을 선택해 주세요.',
+          message: validationMessage,
           status: 400,
         },
         {
@@ -52,6 +55,7 @@ async function POST(request: Request) {
     const session = await createSessionForWorkspace(
       currentUser.workspaceId,
       parsedRequest.data.templateType,
+      parsedRequest.data.exampleText,
     );
 
     return NextResponse.json(

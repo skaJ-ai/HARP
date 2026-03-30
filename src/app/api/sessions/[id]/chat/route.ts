@@ -109,6 +109,7 @@ async function POST(request: Request, { params }: { params: Promise<{ id: string
       },
       system: buildInterviewContext({
         currentChecklist: promptContext.checklist,
+        exampleText: promptContext.exampleText,
         recentDeliverables: promptContext.recentDeliverables,
         sources: promptContext.sources,
         templateType: promptContext.templateType,

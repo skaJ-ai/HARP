@@ -22,9 +22,11 @@ function createSessionTemplateSummary(templateType: TemplateType): SessionTempla
   const template = getTemplateByType(templateType);
 
   return {
+    badge: template.badge,
     checklist: template.checklist,
     description: template.description,
     estimatedMinutes: template.estimatedMinutes,
+    exampleTags: template.exampleTags,
     methodologyMap: template.methodologyMap,
     name: template.name,
     sections: template.sections,
@@ -102,6 +104,7 @@ function parseSessionMessageMetadata(metadata: Record<string, unknown>): Session
 async function createSessionForWorkspace(
   workspaceId: string,
   templateType: TemplateType,
+  exampleText?: string,
 ): Promise<SessionSummary> {
   const database = getDb();
   const template = getTemplateByType(templateType);
@@ -111,6 +114,7 @@ async function createSessionForWorkspace(
       .insert(sessionsTable)
       .values({
         checklist: createInitialChecklist(templateType),
+        exampleText: exampleText ?? null,
         templateType,
         title: template.name,
         workspaceId,
@@ -201,6 +205,7 @@ async function getSessionDetailForWorkspace(
     .select({
       checklist: sessionsTable.checklist,
       createdAt: sessionsTable.createdAt,
+      exampleText: sessionsTable.exampleText,
       id: sessionsTable.id,
       status: sessionsTable.status,
       templateType: sessionsTable.templateType,
@@ -288,6 +293,7 @@ async function getSessionDetailForWorkspace(
         role: messageRow.role,
       };
     }),
+    exampleText: sessionRow.exampleText,
     readinessPercent,
     recentReferences,
     sources: sourceRows.map((sourceRow) => ({
@@ -451,6 +457,7 @@ async function getSessionPromptContext({
   workspaceId: string;
 }): Promise<{
   checklist: SessionChecklist;
+  exampleText: string | null;
   messages: { content: string; role: 'assistant' | 'system' | 'user' }[];
   recentDeliverables: {
     summary: string;
@@ -467,6 +474,7 @@ async function getSessionPromptContext({
   const sessionRows = await database
     .select({
       checklist: sessionsTable.checklist,
+      exampleText: sessionsTable.exampleText,
       id: sessionsTable.id,
       templateType: sessionsTable.templateType,
     })
@@ -508,6 +516,7 @@ async function getSessionPromptContext({
 
   return {
     checklist: sessionRow.checklist,
+    exampleText: sessionRow.exampleText,
     messages: messageRows,
     recentDeliverables: recentDeliverables.map((deliverable) => ({
       summary: deliverable.preview,

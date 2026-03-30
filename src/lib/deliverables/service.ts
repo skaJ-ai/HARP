@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import { and, desc, eq, ne, sql } from 'drizzle-orm';
 
 import { getChatModel } from '@/lib/ai/provider';
+import { EXAMPLE_TEXT_PROMPT_MAX_LENGTH } from '@/lib/ai/session-chat';
 import { getDb } from '@/lib/db';
 import type { DeliverableSection, DeliverableStatus, TemplateType } from '@/lib/db/schema';
 import { deliverablesTable, messagesTable, sessionsTable, sourcesTable } from '@/lib/db/schema';
@@ -232,6 +233,7 @@ function buildSemanticReferenceContext(
 }
 
 function buildGenerationPromptContext({
+  exampleText,
   referenceDeliverables,
   messages,
   semanticReferences,
@@ -239,6 +241,7 @@ function buildGenerationPromptContext({
   sources,
   templateType,
 }: {
+  exampleText?: string | null;
   referenceDeliverables: {
     sections: DeliverableSection[];
     title: string;
@@ -282,6 +285,10 @@ function buildGenerationPromptContext({
       : '- 첨부된 근거자료 없음';
   const referenceContext = buildTieredReferenceContext(referenceDeliverables);
   const semanticReferenceContext = buildSemanticReferenceContext(semanticReferences);
+  const exampleContext =
+    exampleText && exampleText.trim().length > 0
+      ? `${exampleText.trim().slice(0, EXAMPLE_TEXT_PROMPT_MAX_LENGTH)}${exampleText.trim().length > EXAMPLE_TEXT_PROMPT_MAX_LENGTH ? '...' : ''}`
+      : null;
 
   return [
     `[문서 제목] ${sessionTitle}`,
@@ -292,6 +299,7 @@ function buildGenerationPromptContext({
     '[현재 세션 근거자료]',
     sourceContext,
     '',
+    ...(exampleContext ? ['[사용자 제공 예시 문서 — 스타일 참고]', exampleContext, ''] : []),
     '[이전 동일 유형 산출물 — 최근 3건, 상세→구조 순]',
     referenceContext,
     '',
@@ -486,6 +494,7 @@ async function generateDeliverableForSession({
   const database = getDb();
   const sessionRows = await database
     .select({
+      exampleText: sessionsTable.exampleText,
       id: sessionsTable.id,
       status: sessionsTable.status,
       templateType: sessionsTable.templateType,
@@ -580,6 +589,7 @@ async function generateDeliverableForSession({
   const generationResult = await generateText({
     model: getChatModel(),
     prompt: buildGenerationPromptContext({
+      exampleText: sessionRow.exampleText,
       referenceDeliverables: referenceRows,
       messages: messageRows,
       semanticReferences,

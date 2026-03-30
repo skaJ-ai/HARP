@@ -10,6 +10,7 @@ import type { StreamTextTransform, UIMessage } from 'ai';
 
 interface BuildInterviewContextOptions {
   currentChecklist: SessionChecklist;
+  exampleText?: string | null;
   recentDeliverables: {
     summary: string;
     title: string;
@@ -29,9 +30,15 @@ interface ParsedAssistantMetadata {
 }
 
 const CHECKLIST_METADATA_MARKER = '<!-- checklist:';
+const EXAMPLE_TEXT_PROMPT_MAX_LENGTH = 3000;
+
+function truncatePromptReference(text: string, maxLength: number): string {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
 
 function buildInterviewContext({
   currentChecklist,
+  exampleText,
   recentDeliverables,
   sources,
   templateType,
@@ -59,6 +66,10 @@ function buildInterviewContext({
           )
           .join('\n')
       : '- 같은 유형의 이전 산출물 없음';
+  const exampleContext =
+    exampleText && exampleText.trim().length > 0
+      ? truncatePromptReference(exampleText.trim(), EXAMPLE_TEXT_PROMPT_MAX_LENGTH)
+      : null;
 
   return [
     template.systemPrompt.interview,
@@ -71,6 +82,14 @@ function buildInterviewContext({
     '',
     '[같은 유형의 이전 산출물 요약]',
     deliverableContext,
+    '',
+    ...(exampleContext
+      ? [
+          '[사용자 제공 예시 문서]',
+          '아래는 사용자가 참고용으로 제공한 예시 문서입니다. 이 문서의 문체, 분량, 구조를 스타일 레퍼런스로 사용합니다.',
+          exampleContext,
+        ]
+      : []),
   ].join('\n');
 }
 
@@ -271,6 +290,7 @@ function getMethodologySuggestions(
 export {
   buildInterviewContext,
   createMetadataCommentTransform,
+  EXAMPLE_TEXT_PROMPT_MAX_LENGTH,
   extractTextFromUiMessage,
   mergeCanvasState,
   parseAssistantMetadata,
