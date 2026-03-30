@@ -100,6 +100,7 @@ interface CreateSourceRequestBody {
 export type {
   CreateSessionRequestBody,
   CreateSourceRequestBody,
+  SessionCanvasSection,
   SessionCanvasState,
   SessionCanvasUpdate,
   SessionChatMessage,

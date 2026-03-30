@@ -133,6 +133,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    scrollbar-color: var(--color-text-tertiary) transparent;
+    scrollbar-width: thin;
   }
 
   body {
@@ -141,6 +143,24 @@
     color: var(--color-text);
     line-height: 1.65;
     letter-spacing: -0.01em;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(143, 165, 190, 0.8);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 96, 128, 0.9);
   }
 
   /* ── TYPOGRAPHY ── */
@@ -199,6 +219,45 @@
   }
   .doc-card:hover {
     box-shadow: var(--shadow-2);
+  }
+
+  .workspace-card {
+    background-color: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: calc(var(--radius-md) + 2px);
+    padding: var(--space-5);
+  }
+
+  .workspace-card-muted {
+    background-color: var(--color-bg-sunken);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: calc(var(--radius-md) + 2px);
+    padding: var(--space-5);
+  }
+
+  .workspace-empty-state {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top left, rgba(212, 228, 247, 0.9), transparent 55%),
+      var(--color-bg-sunken);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: calc(var(--radius-md) + 4px);
+    padding: var(--space-8);
+  }
+
+  .workspace-empty-state::after {
+    content: attr(data-mark);
+    position: absolute;
+    right: var(--space-6);
+    bottom: var(--space-2);
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.08em;
+    color: rgba(15, 76, 129, 0.08);
+    pointer-events: none;
+    user-select: none;
   }
 
   /* Tab — 워크플로우 탭 */

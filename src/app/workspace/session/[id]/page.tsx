@@ -20,7 +20,7 @@ export default async function WorkspaceSessionPage({
   }
 
   return (
-    <main className="px-6 py-8">
+    <main className="px-6 py-6">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6">
         <WorkspacePageHeader
           actions={
@@ -33,7 +33,7 @@ export default async function WorkspaceSessionPage({
               </Link>
             </>
           }
-          description={`${session.template.name} 템플릿으로 진행 중인 인터뷰입니다. 대화와 근거자료를 쌓으면서 오른쪽 캔버스에서 초안을 다듬을 수 있습니다.`}
+          description={`${session.template.name} 템플릿으로 진행 중인 인터뷰입니다. 중앙 작업영역에서 초안을 정리하고, 오른쪽 패널에서 질문과 근거를 이어갑니다.`}
           eyebrow="Interview Session"
           meta={
             <>
@@ -44,6 +44,7 @@ export default async function WorkspaceSessionPage({
             </>
           }
           title={session.title}
+          variant="compact"
         />
 
         <SessionCanvas initialSession={session} />
