@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { deliverablesTable, sessionsTable, sourcesTable } from '@/lib/db/schema';
+import { searchMemoryChunksHybrid } from '@/lib/memory/retrieval';
 
 import type { WorkspaceSearchResult } from './types';
 
@@ -35,7 +36,90 @@ function compareSearchResults(left: WorkspaceSearchResult, right: WorkspaceSearc
   return right.updatedAt.localeCompare(left.updatedAt);
 }
 
-async function searchWorkspaceContent({
+function createSearchResultKey(result: WorkspaceSearchResult): string {
+  return `${result.kind}:${result.id}`;
+}
+
+function mergeSearchResults(
+  primaryResults: WorkspaceSearchResult[],
+  secondaryResults: WorkspaceSearchResult[],
+): WorkspaceSearchResult[] {
+  const resultMap = new Map<string, WorkspaceSearchResult>();
+
+  for (const result of [...primaryResults, ...secondaryResults]) {
+    const key = createSearchResultKey(result);
+    const existing = resultMap.get(key);
+
+    if (!existing || result.rank > existing.rank) {
+      resultMap.set(key, result);
+    }
+  }
+
+  return [...resultMap.values()].sort(compareSearchResults);
+}
+
+function materializeMemorySearchResults(
+  results: Awaited<ReturnType<typeof searchMemoryChunksHybrid>>,
+  query: string,
+): WorkspaceSearchResult[] {
+  const entityMap = new Map<string, WorkspaceSearchResult>();
+
+  for (const result of results) {
+    if (result.kind === 'source') {
+      if (!result.sourceId || !result.sessionId) {
+        continue;
+      }
+
+      const key = `source:${result.sourceId}`;
+      const nextResult: WorkspaceSearchResult = {
+        href: `/workspace/session/${result.sessionId}`,
+        id: result.sourceId,
+        kind: 'source',
+        rank: result.score,
+        snippet: buildSearchSnippet(result.content, query),
+        sourceType: result.sourceType,
+        title: result.title,
+        updatedAt: result.updatedAt,
+      };
+      const existing = entityMap.get(key);
+
+      if (!existing || nextResult.rank > existing.rank) {
+        entityMap.set(key, nextResult);
+      }
+
+      continue;
+    }
+
+    if (!result.deliverableId) {
+      continue;
+    }
+
+    const key = `deliverable:${result.deliverableId}`;
+    const snippetSource = result.sectionName
+      ? `${result.sectionName} ${result.content}`
+      : result.content;
+    const nextResult: WorkspaceSearchResult = {
+      href: `/workspace/asset/${result.deliverableId}`,
+      id: result.deliverableId,
+      kind: 'deliverable',
+      rank: result.score,
+      snippet: buildSearchSnippet(snippetSource, query),
+      status: result.status ?? undefined,
+      templateType: result.templateType ?? undefined,
+      title: result.title,
+      updatedAt: result.updatedAt,
+    };
+    const existing = entityMap.get(key);
+
+    if (!existing || nextResult.rank > existing.rank) {
+      entityMap.set(key, nextResult);
+    }
+  }
+
+  return [...entityMap.values()];
+}
+
+async function searchWorkspaceContentLegacy({
   query,
   workspaceId,
 }: {
@@ -120,6 +204,43 @@ async function searchWorkspaceContent({
   }));
 
   return [...deliverableResults, ...sourceResults].sort(compareSearchResults);
+}
+
+async function searchWorkspaceContent({
+  query,
+  workspaceId,
+}: {
+  query: string;
+  workspaceId: string;
+}): Promise<WorkspaceSearchResult[]> {
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery.length === 0) {
+    return [];
+  }
+
+  const legacyResults = await searchWorkspaceContentLegacy({
+    query: normalizedQuery,
+    workspaceId,
+  });
+  const memoryResults = await searchMemoryChunksHybrid({
+    limit: 8,
+    mode: 'workspace',
+    query: normalizedQuery,
+    workspaceId,
+  })
+    .then((results) => materializeMemorySearchResults(results, normalizedQuery))
+    .catch((error) => {
+      console.error('Failed to execute hybrid workspace search.', {
+        error,
+        query: normalizedQuery,
+        workspaceId,
+      });
+
+      return [];
+    });
+
+  return mergeSearchResults(memoryResults, legacyResults);
 }
 
 export { searchWorkspaceContent };

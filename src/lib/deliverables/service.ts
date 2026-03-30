@@ -5,6 +5,8 @@ import { getChatModel } from '@/lib/ai/provider';
 import { getDb } from '@/lib/db';
 import type { DeliverableSection, DeliverableStatus, TemplateType } from '@/lib/db/schema';
 import { deliverablesTable, messagesTable, sessionsTable, sourcesTable } from '@/lib/db/schema';
+import { searchMemoryChunksHybrid } from '@/lib/memory/retrieval';
+import { safeReplaceMemoryChunksForDeliverable } from '@/lib/memory/service';
 import { getTemplateByType } from '@/lib/templates';
 
 import {
@@ -17,6 +19,8 @@ import type { DeliverableDetail, DeliverableSummary } from './types';
 
 const REFERENCE_CONTEXT_DELIVERABLE_LIMIT = 3;
 const REFERENCE_SECTION_SUMMARY_MAX_LENGTH = 200;
+const SEMANTIC_REFERENCE_LIMIT = 4;
+const SEMANTIC_REFERENCE_MAX_LENGTH = 320;
 
 function createDeliverableSummary({
   createdAt,
@@ -169,9 +173,68 @@ function buildTieredReferenceContext(
   return contextParts.join('\n\n');
 }
 
+function buildGenerationRetrievalQuery({
+  messages,
+  sessionTitle,
+  sources,
+}: {
+  messages: {
+    content: string;
+    role: 'assistant' | 'system' | 'user';
+  }[];
+  sessionTitle: string;
+  sources: {
+    content: string;
+    label: string | null;
+    type: string | null;
+  }[];
+}): string {
+  const recentUserContext = messages
+    .filter((message) => message.role === 'user')
+    .slice(-3)
+    .map((message) => message.content.trim().replace(/\s+/g, ' '))
+    .join('\n');
+  const sourceContext = sources
+    .slice(0, 3)
+    .map((source, index) => {
+      const label = source.label ?? `자료 ${index + 1}`;
+
+      return `${label}: ${source.content.trim().replace(/\s+/g, ' ').slice(0, 400)}`;
+    })
+    .join('\n');
+
+  return [sessionTitle, recentUserContext, sourceContext]
+    .filter((value) => value.length > 0)
+    .join('\n');
+}
+
+function buildSemanticReferenceContext(
+  semanticReferences: Awaited<ReturnType<typeof searchMemoryChunksHybrid>>,
+): string {
+  if (semanticReferences.length === 0) {
+    return '';
+  }
+
+  return [
+    '[의미 기반 참고 자산]',
+    ...semanticReferences.map((reference) => {
+      const referenceContent = reference.content.trim().replace(/\s+/g, ' ');
+      const contentPreview = referenceContent.slice(0, SEMANTIC_REFERENCE_MAX_LENGTH);
+      const kindLabel = reference.kind === 'deliverable_section' ? 'deliverable_section' : 'source';
+      const sectionLabel =
+        reference.kind === 'deliverable_section' && reference.sectionName
+          ? ` | ${reference.sectionName}`
+          : '';
+
+      return `- [${kindLabel} | ${reference.title}${sectionLabel} | score=${reference.score.toFixed(2)}] ${contentPreview}${referenceContent.length > SEMANTIC_REFERENCE_MAX_LENGTH ? '...' : ''}`;
+    }),
+  ].join('\n');
+}
+
 function buildGenerationPromptContext({
   referenceDeliverables,
   messages,
+  semanticReferences,
   sessionTitle,
   sources,
   templateType,
@@ -184,6 +247,7 @@ function buildGenerationPromptContext({
     content: string;
     role: 'assistant' | 'system' | 'user';
   }[];
+  semanticReferences: Awaited<ReturnType<typeof searchMemoryChunksHybrid>>;
   sessionTitle: string;
   sources: {
     content: string;
@@ -217,6 +281,7 @@ function buildGenerationPromptContext({
           .join('\n')
       : '- 첨부된 근거자료 없음';
   const referenceContext = buildTieredReferenceContext(referenceDeliverables);
+  const semanticReferenceContext = buildSemanticReferenceContext(semanticReferences);
 
   return [
     `[문서 제목] ${sessionTitle}`,
@@ -230,6 +295,7 @@ function buildGenerationPromptContext({
     '[이전 동일 유형 산출물 — 최근 3건, 상세→구조 순]',
     referenceContext,
     '',
+    ...(semanticReferenceContext.length > 0 ? [semanticReferenceContext, ''] : []),
     '[작성 요청]',
     `${template.name} 템플릿 기준으로 초안을 완성해 주세요.`,
     '이전 산출물이 있으면 톤, 구조, 용어를 참고하되 내용은 현재 세션 데이터 기준으로 작성합니다.',
@@ -491,11 +557,32 @@ async function generateDeliverableForSession({
   ]);
 
   const template = getTemplateByType(sessionRow.templateType);
+  const semanticReferences = await searchMemoryChunksHybrid({
+    currentSessionId: sessionId,
+    limit: SEMANTIC_REFERENCE_LIMIT,
+    mode: 'generation',
+    query: buildGenerationRetrievalQuery({
+      messages: messageRows,
+      sessionTitle: sessionRow.title ?? template.name,
+      sources: sourceRows,
+    }),
+    templateType: sessionRow.templateType,
+    workspaceId,
+  }).catch((error) => {
+    console.error('Failed to fetch semantic references for deliverable generation.', {
+      error,
+      sessionId,
+      workspaceId,
+    });
+
+    return [];
+  });
   const generationResult = await generateText({
     model: getChatModel(),
     prompt: buildGenerationPromptContext({
       referenceDeliverables: referenceRows,
       messages: messageRows,
+      semanticReferences,
       sessionTitle: sessionRow.title ?? template.name,
       sources: sourceRows,
       templateType: sessionRow.templateType,
@@ -676,6 +763,10 @@ async function updateDeliverableForWorkspace({
 
   if (!updatedDeliverable) {
     throw new Error('산출물 수정에 실패했습니다.');
+  }
+
+  if (updatedDeliverable.status !== 'draft') {
+    void safeReplaceMemoryChunksForDeliverable(updatedDeliverable.id);
   }
 
   return createDeliverableDetail({

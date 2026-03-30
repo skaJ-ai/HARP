@@ -365,7 +365,8 @@ CREATE INDEX idx_messages_fts ON messages
 | Frontend | Next.js 15 (App Router) | 기존 코드베이스. SSR + API Routes |
 | UI | Tailwind CSS + "Trust within Flow" 디자인 시스템 | 이미 구축됨 |
 | DB | PostgreSQL + Drizzle ORM | 동시 접속 수백 명 대비. 타입 안전 |
-| AI | Qwen3-235B-A22B (사내) | OpenAI 호환 API |
+| AI | Qwen3-235B-A22B (사내) | chat/generation. OpenAI 호환 `/v1` API |
+| Embedding | qwen3-embedding:4b (사내 Ollama) | 향후 vector memory / hybrid retrieval 전용. chat endpoint와 분리 |
 | AI SDK | Vercel AI SDK | 스트리밍, useChat, 구조화 출력 |
 | 배포 | Docker Compose (사내 서버, port 26000) | HR-Coaching과 병렬 운영 |
 | 인증 | 자체 구현 (bcrypt + JWT) | 사내 환경, 외부 의존성 최소화 |
@@ -382,6 +383,9 @@ services:
       DATABASE_URL: postgresql://harp:***@db:5432/harp
       LLM_API_URL: http://10.240.248.157:8533/v1
       LLM_MODEL: Qwen/Qwen3-235B-A22B
+      # Future vector memory:
+      # EMBEDDING_API_URL: http://10.240.248.157:11434
+      # EMBEDDING_MODEL: qwen3-embedding:4b
     depends_on: [db]
 
   db:
@@ -418,6 +422,8 @@ PATCH  /api/deliverables/:id         → 산출물 수정/상태변경 (promote 
 GET    /api/search?q=...         → workspace 내 검색
 GET    /api/health               → 헬스체크
 ```
+
+> 참고: 현재 구현은 chat/generation만 `LLM_API_URL`을 사용한다. 향후 vector memory를 붙일 때는 embedding만 별도 internal Ollama endpoint(`http://10.240.248.157:11434`, `qwen3-embedding:4b`)로 분리한다.
 
 ---
 

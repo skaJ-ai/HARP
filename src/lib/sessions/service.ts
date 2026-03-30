@@ -8,6 +8,7 @@ import {
   getLatestDeliverableSummaryForSession,
   listRecentReferenceDeliverablesByTemplate,
 } from '@/lib/deliverables/service';
+import { safeReplaceMemoryChunksForSource } from '@/lib/memory/service';
 import { createInitialChecklist, getTemplateByType } from '@/lib/templates';
 
 import type {
@@ -323,13 +324,19 @@ async function createSourceForSession({
     throw new Error('세션을 찾을 수 없습니다.');
   }
 
-  await database.transaction(async (transaction) => {
-    await transaction.insert(sourcesTable).values({
-      content,
-      label: label?.trim() ? label.trim() : null,
-      sessionId,
-      type: type ?? 'text',
-    });
+  const createdSourceId = await database.transaction(async (transaction) => {
+    const createdSources = await transaction
+      .insert(sourcesTable)
+      .values({
+        content,
+        label: label?.trim() ? label.trim() : null,
+        sessionId,
+        type: type ?? 'text',
+      })
+      .returning({
+        id: sourcesTable.id,
+      });
+    const createdSource = createdSources[0];
 
     await transaction
       .update(sessionsTable)
@@ -337,7 +344,13 @@ async function createSourceForSession({
         updatedAt: sql`now()`,
       })
       .where(eq(sessionsTable.id, sessionId));
+
+    return createdSource?.id ?? null;
   });
+
+  if (createdSourceId) {
+    void safeReplaceMemoryChunksForSource(createdSourceId);
+  }
 }
 
 async function createUserMessageForSession({

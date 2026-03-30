@@ -1,8 +1,19 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  customType,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 type DeliverableSectionConfidence = 'high' | 'medium' | 'low';
 type DeliverableStatus = 'draft' | 'final' | 'promoted_asset';
+type MemoryChunkKind = 'deliverable_section' | 'source';
+type MemoryChunkStatus = 'active' | 'superseded';
 type MessageMetadata = Record<string, unknown>;
 type MessageRole = 'assistant' | 'system' | 'user';
 type SessionChecklist = Record<string, boolean>;
@@ -17,6 +28,33 @@ interface DeliverableSection {
   content: string;
   name: string;
 }
+
+const vectorColumn = customType<{
+  data: number[];
+  driverData: string;
+}>({
+  dataType() {
+    return 'vector';
+  },
+  fromDriver(value): number[] {
+    if (Array.isArray(value)) {
+      return value.map((item) => Number(item));
+    }
+
+    if (typeof value !== 'string' || value.length < 2) {
+      return [];
+    }
+
+    return value
+      .slice(1, -1)
+      .split(',')
+      .filter((item) => item.length > 0)
+      .map((item) => Number.parseFloat(item));
+  },
+  toDriver(value): string {
+    return JSON.stringify(value);
+  },
+});
 
 const usersTable = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -128,8 +166,52 @@ const deliverablesTable = pgTable(
   }),
 );
 
+const memoryChunksTable = pgTable(
+  'memory_chunks',
+  {
+    content: text('content').notNull(),
+    contentHash: text('content_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    deliverableId: uuid('deliverable_id').references(() => deliverablesTable.id, {
+      onDelete: 'cascade',
+    }),
+    embedding: vectorColumn('embedding').notNull(),
+    embeddingModel: text('embedding_model').notNull(),
+    embeddingVersion: integer('embedding_version').default(1).notNull(),
+    id: uuid('id').defaultRandom().primaryKey(),
+    kind: text('kind').$type<MemoryChunkKind>().notNull(),
+    sectionName: text('section_name'),
+    sessionId: uuid('session_id').references(() => sessionsTable.id, { onDelete: 'set null' }),
+    sourceId: uuid('source_id').references(() => sourcesTable.id, { onDelete: 'cascade' }),
+    status: text('status').$type<MemoryChunkStatus>().default('active').notNull(),
+    templateType: text('template_type').$type<TemplateType>(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspacesTable.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    contentHashIndex: index('idx_memory_chunks_content_hash').on(table.contentHash),
+    deliverableIndex: index('idx_memory_chunks_deliverable_id').on(table.deliverableId),
+    kindIndex: index('idx_memory_chunks_kind').on(table.kind),
+    memoryChunksFtsIndex: index('idx_memory_chunks_fts').using(
+      'gin',
+      sql`to_tsvector('simple', ${table.content})`,
+    ),
+    sessionIndex: index('idx_memory_chunks_session_id').on(table.sessionId),
+    sourceIndex: index('idx_memory_chunks_source_id').on(table.sourceId),
+    statusIndex: index('idx_memory_chunks_status').on(table.status),
+    templateIndex: index('idx_memory_chunks_template_type').on(table.templateType),
+    workspaceStatusIndex: index('idx_memory_chunks_workspace_status').on(
+      table.workspaceId,
+      table.status,
+    ),
+  }),
+);
+
 export {
   deliverablesTable,
+  memoryChunksTable,
   messagesTable,
   sessionsTable,
   sourcesTable,
@@ -139,6 +221,8 @@ export {
 export type {
   DeliverableSection,
   DeliverableStatus,
+  MemoryChunkKind,
+  MemoryChunkStatus,
   SessionChecklist,
   SessionStatus,
   SourceType,
