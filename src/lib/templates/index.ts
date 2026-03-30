@@ -9,6 +9,7 @@ interface TemplateSectionDefinition {
 }
 
 interface TemplateChecklistItem {
+  helpText: string;
   id: string;
   intent: string;
   label: string;
@@ -48,18 +49,62 @@ interface TemplateDefinition {
 type TemplateDefinitionMap = Record<TemplateType, Omit<TemplateDefinition, 'systemPrompt'>>;
 
 const CHECKLIST_ITEMS: TemplateChecklistItem[] = [
-  { id: '1', intent: '이 문서를 왜 작성하는지 명확히 한다.', label: '목적', weight: 2 },
-  { id: '2', intent: '누구를 위한 보고서인지와 독자를 분명히 한다.', label: '대상', weight: 1 },
-  { id: '3', intent: '현재 상황과 주요 사실을 구조화한다.', label: '현황', weight: 3 },
-  { id: '4', intent: '제안, 시사점, 개선안의 방향을 정리한다.', label: '제안', weight: 2 },
   {
+    helpText:
+      '"신임 리더십 교육 성과를 정리해서 내년 예산 확보에 쓰려고 합니다"처럼, 이 보고서가 어디에 쓰이는지 말씀해 주세요.',
+    id: '1',
+    intent: '이 문서를 왜 작성하는지 명확히 한다.',
+    label: '목적',
+    weight: 2,
+  },
+  {
+    helpText:
+      '"팀장 이상 리더에게 보고합니다" 또는 "경영진 보고용"처럼, 누가 이 문서를 읽을지 알려주세요.',
+    id: '2',
+    intent: '누구를 위한 보고서인지와 독자를 분명히 한다.',
+    label: '대상',
+    weight: 1,
+  },
+  {
+    helpText:
+      '"현재 퇴사율이 8%이고 작년 대비 2%p 올랐습니다"처럼, 숫자나 사실을 중심으로 현재 상황을 설명해 주세요.',
+    id: '3',
+    intent: '현재 상황과 주요 사실을 구조화한다.',
+    label: '현황',
+    weight: 3,
+  },
+  {
+    helpText:
+      '"온보딩 기간을 2주에서 1주로 줄이는 것을 제안합니다"처럼, 바꾸고 싶은 것이나 시도해볼 방향을 말씀해 주세요.',
+    id: '4',
+    intent: '제안, 시사점, 개선안의 방향을 정리한다.',
+    label: '제안',
+    weight: 2,
+  },
+  {
+    helpText:
+      '"비용 15% 절감이 기대됩니다" 또는 "만족도 4.5 이상 유지가 목표입니다"처럼, 숫자나 결과 중심으로 말씀해 주세요.',
     id: '5',
     intent: '기대효과와 의미를 숫자나 결과 중심으로 정리한다.',
     label: '기대효과',
     weight: 2,
   },
-  { id: '6', intent: '일정과 후속 조치를 분명히 한다.', label: '일정', weight: 1 },
-  { id: '7', intent: '근거 자료와 데이터 유무를 확인한다.', label: '근거/데이터', weight: 3 },
+  {
+    helpText:
+      '"4월 첫째 주까지 완료하고 다음 분기에 재평가합니다"처럼, 언제까지 무엇을 할지 알려주세요.',
+    id: '6',
+    intent: '일정과 후속 조치를 분명히 한다.',
+    label: '일정',
+    weight: 1,
+  },
+  {
+    helpText:
+      '설문 결과, 인사 데이터, 벤치마크 자료 등이 있으면 근거자료 패널에 붙여넣어 주세요. 없으면 "근거 자료가 없습니다"라고 말씀해 주셔도 됩니다.',
+    id: '7',
+    intent: '근거 자료와 데이터 유무를 확인한다.',
+    label: '근거/데이터',
+    weight: 3,
+  },
 ];
 
 const METHODOLOGY_LIBRARY: Record<string, MethodologyCard> = {
@@ -272,7 +317,10 @@ function buildCanvasJsonTemplate(template: Omit<TemplateDefinition, 'systemPromp
 
 function buildInterviewPrompt(template: Omit<TemplateDefinition, 'systemPrompt'>): string {
   const checklistGuide = template.checklist
-    .map((item) => `- ${item.id}. ${item.label} (가중치 ${item.weight}) — ${item.intent}`)
+    .map(
+      (item) =>
+        `- ${item.id}. ${item.label} (가중치 ${item.weight}) — ${item.intent}\n  도움말: ${item.helpText}`,
+    )
     .join('\n');
   const methodologyGuide = Object.entries(template.methodologyMap)
     .map(([category, methodologies]) => {
@@ -305,6 +353,22 @@ function buildInterviewPrompt(template: Omit<TemplateDefinition, 'systemPrompt'>
     '',
     '[허용된 방법론 카드]',
     methodologyGuide,
+    '',
+    '[항목 설명 요청 처리]',
+    '- 사용자가 특정 체크리스트 항목의 의미를 물으면 (예: "목적이 뭐야?", "현황 항목이 정확히 뭘 말하는 건지"), 해당 항목의 도움말을 바탕으로 먼저 설명합니다.',
+    '- 설명 후에는 같은 항목에 대한 구체적 질문으로 바로 이어갑니다. 예: "이 항목은 ~입니다. 지금 작성하시는 보고서에서는 어떤 목적으로 쓰시나요?"',
+    '- 설명 요청은 인터뷰 흐름을 벗어나는 것이 아니라, 해당 항목을 채우기 위한 준비 단계로 취급합니다.',
+    '',
+    '[모호도 감지 규칙]',
+    '- 사용자 답변이 아래 패턴에 해당하면 "모호한 답변"으로 판단하고, 구체화를 요청합니다:',
+    '  1. 형용사만 있는 답변: "잘 됐어요", "괜찮았어요", "별로였어요" → 수치나 사례를 요청',
+    '  2. 주어 없는 답변: "개선이 필요해요" → 누가, 어떤 부분인지 요청',
+    '  3. 기간/범위 없는 답변: "최근에 변경했어요" → 언제, 얼마나인지 요청',
+    '  4. 비교 기준 없는 수치: "만족도 4.2점" → 이전 대비인지, 목표 대비인지 요청',
+    '- 모호도 감지 시 체크리스트를 true로 바꾸지 않습니다.',
+    '- 톤은 공감 → 구체화 요청 순서입니다. 예: "좋은 결과네요. 구체적으로 어떤 지표에서 그렇게 나왔는지 알려주시겠어요?"',
+    '- 구체화 요청 후에도 비슷한 수준의 답변이 오면, 집요하게 반복하지 말고 현재 답변으로 진행합니다. 체크리스트는 true로 처리합니다.',
+    '- 이 규칙은 best effort입니다. 대화 기록을 참고해 이미 같은 항목에서 구체화를 요청했다면 재질문하지 않습니다.',
     '',
     '[출력 규칙]',
     '- 사용자에게 보이는 본문은 자연스러운 한국어 대화만 작성합니다.',

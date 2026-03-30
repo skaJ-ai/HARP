@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 
 import Link from 'next/link';
 
@@ -38,6 +38,9 @@ interface SessionDetailFetcherResult {
 }
 
 type CanvasTab = 'canvas' | 'references' | 'tools';
+
+const PREVIEW_SECTION_CONTENT_MAX_LENGTH = 120;
+const READINESS_PARTIAL_GENERATE_THRESHOLD = 70;
 
 function createUiMessages(messages: SessionChatMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -77,18 +80,88 @@ function getVisibleMessageText(message: UIMessage): string {
     .trim();
 }
 
+function getReadinessColor(percent: number): string {
+  if (percent >= 100) {
+    return 'var(--color-success)';
+  }
+
+  if (percent >= READINESS_PARTIAL_GENERATE_THRESHOLD) {
+    return 'var(--color-teal)';
+  }
+
+  if (percent >= 50) {
+    return 'var(--color-warning)';
+  }
+
+  return 'var(--color-error)';
+}
+
+function getReadinessMessage(percent: number): string {
+  if (percent >= 100) {
+    return '모든 항목이 채워졌습니다';
+  }
+
+  if (percent >= READINESS_PARTIAL_GENERATE_THRESHOLD) {
+    return '나머지 없이 정리할 수 있습니다';
+  }
+
+  if (percent >= 50) {
+    return '일부 항목이 남아 있습니다';
+  }
+
+  return '핵심 항목이 부족합니다';
+}
+
+function getReadinessBadgeClassName(percent: number): string {
+  if (percent >= 100) {
+    return 'badge-success';
+  }
+
+  if (percent >= READINESS_PARTIAL_GENERATE_THRESHOLD) {
+    return 'badge-teal';
+  }
+
+  if (percent >= 50) {
+    return 'badge-warning';
+  }
+
+  return 'badge-error';
+}
+
+function renderChecklistWeightDots(weight: number, isChecked: boolean): ReactElement[] {
+  const dotToneClassName = isChecked ? 'status-dot-success' : 'status-dot-neutral';
+
+  return Array.from({ length: weight }, (_, dotIndex) => (
+    <span className={`status-dot ${dotToneClassName}`} key={`weight-dot-${weight}-${dotIndex}`} />
+  ));
+}
+
+function getPreviewSectionContent(content: string): string {
+  if (content.length === 0) {
+    return '수집된 내용 없음 — 추정으로 작성됩니다';
+  }
+
+  if (content.length <= PREVIEW_SECTION_CONTENT_MAX_LENGTH) {
+    return content;
+  }
+
+  return `${content.slice(0, PREVIEW_SECTION_CONTENT_MAX_LENGTH)}...`;
+}
+
 function SessionCanvas({ initialSession }: SessionCanvasProps) {
+  const [activeTab, setActiveTab] = useState<CanvasTab>('canvas');
   const [chatInput, setChatInput] = useState('');
+  const [expandedHelpItemId, setExpandedHelpItemId] = useState<string | null>(null);
   const [sourceContent, setSourceContent] = useState('');
   const [sourceLabel, setSourceLabel] = useState('');
   const [sourceType, setSourceType] = useState<'data' | 'table' | 'text'>('text');
   const [sourceError, setSourceError] = useState('');
   const [generateError, setGenerateError] = useState('');
   const [generateMessage, setGenerateMessage] = useState('');
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [lastGeneratedDeliverableId, setLastGeneratedDeliverableId] = useState('');
   const [isGenerateSubmitting, setIsGenerateSubmitting] = useState(false);
   const [isSourceSubmitting, setIsSourceSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<CanvasTab>('canvas');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [transport] = useState(
@@ -159,6 +232,26 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
     setChatInput('');
   };
 
+  const handleChecklistAskClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const itemLabel = event.currentTarget.dataset.itemLabel;
+
+    if (!itemLabel) {
+      return;
+    }
+
+    setChatInput(`"${itemLabel}" 항목이 정확히 뭘 말하는 건지 설명해 주세요.`);
+  };
+
+  const handleChecklistHelpToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const itemId = event.currentTarget.dataset.itemId;
+
+    if (!itemId) {
+      return;
+    }
+
+    setExpandedHelpItemId((previousId) => (previousId === itemId ? null : itemId));
+  };
+
   const handleMethodologySuggestionClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     const methodologyName = event.currentTarget.dataset.methodologyName;
 
@@ -223,7 +316,11 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
   };
 
   const handleGenerateClick = async () => {
-    if (!currentSession.canGenerate || isGenerateSubmitting || status !== 'ready') {
+    if (currentSession.readinessPercent < READINESS_PARTIAL_GENERATE_THRESHOLD) {
+      return;
+    }
+
+    if (isGenerateSubmitting || status !== 'ready') {
       return;
     }
 
@@ -252,14 +349,43 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
     await mutateSession();
   };
 
-  const handleGenerateButtonClick = () => {
+  const handleGeneratePreviewCancel = () => {
+    setIsPreviewMode(false);
+  };
+
+  const handleGeneratePreviewConfirm = () => {
+    setIsPreviewMode(false);
     void handleGenerateClick();
+  };
+
+  const handleGeneratePreviewOpen = () => {
+    if (currentSession.readinessPercent < READINESS_PARTIAL_GENERATE_THRESHOLD) {
+      return;
+    }
+
+    if (isGenerateSubmitting || status !== 'ready') {
+      return;
+    }
+
+    setIsPreviewMode(true);
   };
 
   const isCanvasTabActive = activeTab === 'canvas';
   const isToolsTabActive = activeTab === 'tools';
   const isReferencesTabActive = activeTab === 'references';
   const completedChecklistCount = Object.values(currentSession.checklist).filter(Boolean).length;
+  const readinessPercent = currentSession.readinessPercent;
+  const readinessBarStyle = {
+    backgroundColor: getReadinessColor(readinessPercent),
+    width: `${readinessPercent}%`,
+  };
+  const readinessBadgeClassName = getReadinessBadgeClassName(readinessPercent);
+  const readinessMessage = getReadinessMessage(readinessPercent);
+  const hasEmptyPreviewSections = currentSession.canvas.sections.some(
+    (section) => section.status === 'empty',
+  );
+  const isPartialGenerateAvailable =
+    readinessPercent >= READINESS_PARTIAL_GENERATE_THRESHOLD && !currentSession.canGenerate;
 
   const renderMessage = (message: UIMessage) => {
     const visibleText = getVisibleMessageText(message);
@@ -419,16 +545,27 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="badge badge-accent">
+                <span className={`badge ${readinessBadgeClassName}`}>{readinessPercent}% 준비</span>
+                <span className="badge badge-neutral">
                   {completedChecklistCount} / {currentSession.template.checklist.length} 완료
                 </span>
                 <span className="badge badge-neutral">자료 {currentSession.sources.length}개</span>
+                {isPartialGenerateAvailable ? (
+                  <button
+                    className="btn-secondary focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isGenerateSubmitting || status !== 'ready'}
+                    onClick={handleGeneratePreviewOpen}
+                    type="button"
+                  >
+                    {isGenerateSubmitting ? '정리 중...' : '부족한 채로 정리하기'}
+                  </button>
+                ) : null}
                 <button
                   className="btn-teal focus-ring disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={
                     !currentSession.canGenerate || isGenerateSubmitting || status !== 'ready'
                   }
-                  onClick={handleGenerateButtonClick}
+                  onClick={handleGeneratePreviewOpen}
                   type="button"
                 >
                   {isGenerateSubmitting ? '정리 중...' : '정리하기'}
@@ -465,99 +602,177 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
         <div className="flex-1 overflow-y-auto p-6">
           {isCanvasTabActive ? (
             <div className="flex flex-col gap-4">
-              {generateError.length > 0 ? (
-                <div className="border-[var(--color-error)]/20 rounded-[var(--radius-md)] border bg-[var(--color-error-light)] px-4 py-3 text-sm text-[var(--color-error)]">
-                  {generateError}
-                </div>
-              ) : null}
-              {generateMessage.length > 0 ? (
-                <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
-                  {generateMessage}
-                </div>
-              ) : null}
-
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
-                <article className="doc-card p-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
+              {isPreviewMode ? (
+                <div className="rounded-[var(--radius-md)] border-2 border-[var(--color-accent)] bg-[var(--color-accent-light)] p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
                     <div className="flex flex-col gap-1">
-                      <p className="meta">Readiness</p>
+                      <p className="meta">Preview</p>
                       <h3 className="text-base font-semibold text-[var(--color-text)]">
-                        초안 생성 준비 상태
+                        생성 전 확인
                       </h3>
                     </div>
-                    <span
-                      className={`badge ${currentSession.canGenerate ? 'badge-success' : 'badge-neutral'}`}
-                    >
-                      {currentSession.canGenerate ? '생성 가능' : '정보 수집 필요'}
+                    <span className={`badge ${readinessBadgeClassName}`}>
+                      {readinessPercent}% 준비
                     </span>
                   </div>
-                  <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
-                    체크리스트가 모두 완료되면 정리하기가 활성화됩니다. 아직 비어 있는 항목은 보조
-                    도구 탭에서 바로 확인할 수 있습니다.
-                  </p>
-                </article>
 
-                {hasLatestDeliverable ? (
-                  <article className="doc-card p-5">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div className="flex flex-col gap-1">
-                        <p className="meta">Latest Draft</p>
-                        <h3 className="text-base font-semibold text-[var(--color-text)]">
-                          {latestDeliverable?.title ?? currentSession.title}
-                        </h3>
-                      </div>
-                      {latestDeliverable ? (
-                        <div className="flex items-center gap-2">
-                          <span className="badge badge-neutral">{latestDeliverable.status}</span>
-                          <span className="badge badge-accent">v{latestDeliverable.version}</span>
+                  <div className="mb-4 flex flex-col gap-2">
+                    {currentSession.canvas.sections.map((section) => (
+                      <div
+                        className="flex items-start justify-between gap-3 rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] bg-[var(--color-bg)] px-3 py-2"
+                        key={section.name}
+                      >
+                        <div className="flex flex-1 flex-col gap-1">
+                          <p className="text-sm font-semibold text-[var(--color-text)]">
+                            {section.name}
+                          </p>
+                          <p className="text-xs leading-5 text-[var(--color-text-secondary)]">
+                            {getPreviewSectionContent(section.content)}
+                          </p>
                         </div>
-                      ) : null}
-                    </div>
-                    <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
-                      {latestDeliverable?.preview ?? '방금 생성한 초안을 확인할 수 있습니다.'}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link
-                        className="btn-secondary focus-ring"
-                        href={`/workspace/asset/${latestDeliverable?.id ?? lastGeneratedDeliverableId}`}
-                      >
-                        산출물 보기
-                      </Link>
-                    </div>
-                  </article>
-                ) : null}
-              </div>
+                        <span
+                          className={`badge mt-0.5 ${section.status === 'complete' ? 'badge-success' : 'badge-warning'}`}
+                        >
+                          {section.status === 'complete' ? '준비됨' : '추정'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-              {isSessionLoading ? (
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  세션을 불러오는 중입니다...
-                </p>
-              ) : null}
+                  {hasEmptyPreviewSections ? (
+                    <p className="mb-4 text-sm leading-6 text-[var(--color-warning)]">
+                      수집되지 않은 섹션은 LLM이 추정으로 작성합니다. 근거가 부족할 수 있습니다.
+                    </p>
+                  ) : null}
 
-              <div className="grid gap-4">
-                {currentSession.canvas.sections.map((section) => (
-                  <article className="doc-card p-5" key={section.name}>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h3 className="text-base font-semibold text-[var(--color-text)]">
-                        {section.name}
-                      </h3>
-                      <span
-                        className={`badge ${section.status === 'complete' ? 'badge-success' : 'badge-neutral'}`}
-                      >
-                        {section.status === 'complete' ? '채워짐' : '대기'}
-                      </span>
+                  <div className="flex items-center justify-end gap-3">
+                    <button
+                      className="btn-secondary focus-ring"
+                      onClick={handleGeneratePreviewCancel}
+                      type="button"
+                    >
+                      더 보충합니다
+                    </button>
+                    <button
+                      className="btn-teal focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isGenerateSubmitting}
+                      onClick={handleGeneratePreviewConfirm}
+                      type="button"
+                    >
+                      {isGenerateSubmitting ? '정리 중...' : '이대로 정리합니다'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {generateError.length > 0 ? (
+                    <div className="border-[var(--color-error)]/20 rounded-[var(--radius-md)] border bg-[var(--color-error-light)] px-4 py-3 text-sm text-[var(--color-error)]">
+                      {generateError}
                     </div>
-                    <p className="mb-3 text-xs leading-5 text-[var(--color-text-tertiary)]">
-                      {section.description}
+                  ) : null}
+                  {generateMessage.length > 0 ? (
+                    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                      {generateMessage}
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
+                    <article className="doc-card p-5">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-1">
+                          <p className="meta">Readiness</p>
+                          <h3 className="text-base font-semibold text-[var(--color-text)]">
+                            초안 생성 준비도
+                          </h3>
+                        </div>
+                        <span className={`badge ${readinessBadgeClassName}`}>
+                          {readinessMessage}
+                        </span>
+                      </div>
+                      <div className="mb-4 flex items-center gap-3">
+                        <div className="h-2 flex-1 rounded-full bg-[var(--color-border-subtle)]">
+                          <div
+                            className="h-2 rounded-full transition-[width] duration-300"
+                            style={readinessBarStyle}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--color-text)]">
+                          {readinessPercent}%
+                        </span>
+                      </div>
+                      <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+                        가중치 기준 준비도입니다. 현황, 근거 같은 핵심 항목이 더 크게 반영되며, 비어
+                        있는 항목은 보조 도구 탭에서 바로 확인할 수 있습니다.
+                      </p>
+                    </article>
+
+                    {hasLatestDeliverable ? (
+                      <article className="doc-card p-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="flex flex-col gap-1">
+                            <p className="meta">Latest Draft</p>
+                            <h3 className="text-base font-semibold text-[var(--color-text)]">
+                              {latestDeliverable?.title ?? currentSession.title}
+                            </h3>
+                          </div>
+                          {latestDeliverable ? (
+                            <div className="flex items-center gap-2">
+                              <span className="badge badge-neutral">
+                                {latestDeliverable.status}
+                              </span>
+                              <span className="badge badge-accent">
+                                v{latestDeliverable.version}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+                          {latestDeliverable?.preview ?? '방금 생성한 초안을 확인할 수 있습니다.'}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Link
+                            className="btn-secondary focus-ring"
+                            href={`/workspace/asset/${latestDeliverable?.id ?? lastGeneratedDeliverableId}`}
+                          >
+                            산출물 보기
+                          </Link>
+                        </div>
+                      </article>
+                    ) : null}
+                  </div>
+
+                  {isSessionLoading ? (
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      세션을 불러오는 중입니다...
                     </p>
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
-                      {section.content.length > 0
-                        ? section.content
-                        : '아직 정리된 내용이 없습니다.'}
-                    </p>
-                  </article>
-                ))}
-              </div>
+                  ) : null}
+
+                  <div className="grid gap-4">
+                    {currentSession.canvas.sections.map((section) => (
+                      <article className="doc-card p-5" key={section.name}>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <h3 className="text-base font-semibold text-[var(--color-text)]">
+                            {section.name}
+                          </h3>
+                          <span
+                            className={`badge ${section.status === 'complete' ? 'badge-success' : 'badge-neutral'}`}
+                          >
+                            {section.status === 'complete' ? '채워짐' : '대기'}
+                          </span>
+                        </div>
+                        <p className="mb-3 text-xs leading-5 text-[var(--color-text-tertiary)]">
+                          {section.description}
+                        </p>
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
+                          {section.content.length > 0
+                            ? section.content
+                            : '아직 정리된 내용이 없습니다.'}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
 
@@ -579,25 +794,57 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                 <div className="grid gap-3">
                   {currentSession.template.checklist.map((item) => {
                     const isChecked = currentSession.checklist[item.id] === true;
+                    const isHelpExpanded = expandedHelpItemId === item.id;
 
                     return (
                       <div
-                        className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] px-4 py-3"
+                        className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)]"
                         key={item.id}
                       >
-                        <span
-                          className={`badge mt-0.5 ${isChecked ? 'badge-success' : 'badge-neutral'}`}
-                        >
-                          {isChecked ? '완료' : '대기'}
-                        </span>
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm font-semibold text-[var(--color-text)]">
-                            {item.label}
-                          </p>
-                          <p className="text-xs leading-5 text-[var(--color-text-secondary)]">
-                            {item.intent}
-                          </p>
+                        <div className="flex items-start justify-between gap-3 px-4 py-3">
+                          <span
+                            className={`badge mt-0.5 ${isChecked ? 'badge-success' : 'badge-neutral'}`}
+                          >
+                            {isChecked ? '완료' : '대기'}
+                          </span>
+                          <div className="flex flex-1 flex-col gap-1">
+                            <p className="text-sm font-semibold text-[var(--color-text)]">
+                              {item.label}
+                            </p>
+                            <p className="text-xs leading-5 text-[var(--color-text-secondary)]">
+                              {item.intent}
+                            </p>
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {renderChecklistWeightDots(item.weight, isChecked)}
+                            </div>
+                            <button
+                              className="text-xs text-[var(--color-text-tertiary)] transition hover:text-[var(--color-accent)]"
+                              data-item-id={item.id}
+                              onClick={handleChecklistHelpToggle}
+                              type="button"
+                            >
+                              {isHelpExpanded ? '접기' : '도움말'}
+                            </button>
+                          </div>
                         </div>
+
+                        {isHelpExpanded ? (
+                          <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)] px-4 py-3">
+                            <p className="mb-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                              {item.helpText}
+                            </p>
+                            <button
+                              className="text-xs font-semibold text-[var(--color-accent)] hover:underline"
+                              data-item-label={item.label}
+                              onClick={handleChecklistAskClick}
+                              type="button"
+                            >
+                              이 항목에 대해 HARP에게 물어보기
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

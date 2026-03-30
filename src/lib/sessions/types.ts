@@ -82,6 +82,7 @@ interface SessionDetail extends SessionSummary {
   canvas: SessionCanvasState;
   latestDeliverable: DeliverableSummary | null;
   messages: SessionChatMessage[];
+  readinessPercent: number;
   recentReferences: DeliverableSummary[];
   sources: SessionSourceSummary[];
 }

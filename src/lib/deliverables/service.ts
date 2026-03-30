@@ -15,6 +15,9 @@ import {
 
 import type { DeliverableDetail, DeliverableSummary } from './types';
 
+const REFERENCE_CONTEXT_DELIVERABLE_LIMIT = 3;
+const REFERENCE_SECTION_SUMMARY_MAX_LENGTH = 200;
+
 function createDeliverableSummary({
   createdAt,
   id,
@@ -113,19 +116,70 @@ function assertDeliverableStatusTransition(
   }
 }
 
+function buildSectionSummary(section: DeliverableSection): string {
+  const content = section.content.trim().replace(/\s+/g, ' ');
+  const summary = content.slice(0, REFERENCE_SECTION_SUMMARY_MAX_LENGTH);
+  const sectionMeta = `confidence=${section.confidence}, cited=${section.cited}`;
+
+  return `- ${section.name} [${sectionMeta}]: ${summary}${content.length > REFERENCE_SECTION_SUMMARY_MAX_LENGTH ? '...' : ''}`;
+}
+
+function buildTieredReferenceContext(
+  referenceDeliverables: {
+    sections: DeliverableSection[];
+    title: string;
+  }[],
+): string {
+  if (referenceDeliverables.length === 0) {
+    return '참고할 이전 동일 유형 산출물 없음';
+  }
+
+  const contextParts: string[] = [];
+
+  const latestReferenceDeliverable = referenceDeliverables[0];
+
+  if (latestReferenceDeliverable) {
+    contextParts.push(
+      '[가장 최근 산출물 — 전체 참고]',
+      buildDeliverableMarkdown(
+        latestReferenceDeliverable.title,
+        latestReferenceDeliverable.sections,
+      ),
+    );
+  }
+
+  const summarizedReferenceDeliverable = referenceDeliverables[1];
+
+  if (summarizedReferenceDeliverable) {
+    contextParts.push(
+      `[이전 산출물 — 요약 참고] ${summarizedReferenceDeliverable.title}`,
+      summarizedReferenceDeliverable.sections.map(buildSectionSummary).join('\n'),
+    );
+  }
+
+  const structuralReferenceDeliverable = referenceDeliverables[2];
+
+  if (structuralReferenceDeliverable) {
+    contextParts.push(
+      `[과거 산출물 — 구조 참고] ${structuralReferenceDeliverable.title}`,
+      `- 섹션: ${structuralReferenceDeliverable.sections.map((section) => section.name).join(', ')}`,
+    );
+  }
+
+  return contextParts.join('\n\n');
+}
+
 function buildGenerationPromptContext({
-  latestReferenceDeliverable,
+  referenceDeliverables,
   messages,
   sessionTitle,
   sources,
   templateType,
 }: {
-  latestReferenceDeliverable:
-    | {
-        sections: DeliverableSection[];
-        title: string;
-      }
-    | undefined;
+  referenceDeliverables: {
+    sections: DeliverableSection[];
+    title: string;
+  }[];
   messages: {
     content: string;
     role: 'assistant' | 'system' | 'user';
@@ -162,12 +216,7 @@ function buildGenerationPromptContext({
           })
           .join('\n')
       : '- 첨부된 근거자료 없음';
-  const referenceContext = latestReferenceDeliverable
-    ? buildDeliverableMarkdown(
-        latestReferenceDeliverable.title,
-        latestReferenceDeliverable.sections,
-      )
-    : '참고할 이전 동일 유형 산출물 없음';
+  const referenceContext = buildTieredReferenceContext(referenceDeliverables);
 
   return [
     `[문서 제목] ${sessionTitle}`,
@@ -178,11 +227,12 @@ function buildGenerationPromptContext({
     '[현재 세션 근거자료]',
     sourceContext,
     '',
-    '[참고용 이전 동일 유형 산출물]',
+    '[이전 동일 유형 산출물 — 최근 3건, 상세→구조 순]',
     referenceContext,
     '',
     '[작성 요청]',
     `${template.name} 템플릿 기준으로 초안을 완성해 주세요.`,
+    '이전 산출물이 있으면 톤, 구조, 용어를 참고하되 내용은 현재 세션 데이터 기준으로 작성합니다.',
   ].join('\n');
 }
 
@@ -384,68 +434,67 @@ async function generateDeliverableForSession({
     throw new Error('세션을 찾을 수 없습니다.');
   }
 
-  const [messageRows, sourceRows, latestReferenceRows, latestSessionDeliverableRows] =
-    await Promise.all([
-      database
-        .select({
-          content: messagesTable.content,
-          role: messagesTable.role,
-        })
-        .from(messagesTable)
-        .where(eq(messagesTable.sessionId, sessionId))
-        .orderBy(messagesTable.createdAt),
-      database
-        .select({
-          content: sourcesTable.content,
-          label: sourcesTable.label,
-          type: sourcesTable.type,
-        })
-        .from(sourcesTable)
-        .where(eq(sourcesTable.sessionId, sessionId))
-        .orderBy(desc(sourcesTable.createdAt)),
-      database
-        .select({
-          sections: deliverablesTable.sections,
-          title: deliverablesTable.title,
-        })
-        .from(deliverablesTable)
-        .where(
-          and(
-            eq(deliverablesTable.workspaceId, workspaceId),
-            eq(deliverablesTable.templateType, sessionRow.templateType),
-            ne(deliverablesTable.sessionId, sessionId),
-          ),
-        )
-        .orderBy(desc(deliverablesTable.updatedAt))
-        .limit(1),
-      database
-        .select({
-          createdAt: deliverablesTable.createdAt,
-          id: deliverablesTable.id,
-          sections: deliverablesTable.sections,
-          sessionId: deliverablesTable.sessionId,
-          status: deliverablesTable.status,
-          templateType: deliverablesTable.templateType,
-          title: deliverablesTable.title,
-          updatedAt: deliverablesTable.updatedAt,
-          version: deliverablesTable.version,
-        })
-        .from(deliverablesTable)
-        .where(
-          and(
-            eq(deliverablesTable.workspaceId, workspaceId),
-            eq(deliverablesTable.sessionId, sessionId),
-          ),
-        )
-        .orderBy(desc(deliverablesTable.updatedAt))
-        .limit(1),
-    ]);
+  const [messageRows, sourceRows, referenceRows, latestSessionDeliverableRows] = await Promise.all([
+    database
+      .select({
+        content: messagesTable.content,
+        role: messagesTable.role,
+      })
+      .from(messagesTable)
+      .where(eq(messagesTable.sessionId, sessionId))
+      .orderBy(messagesTable.createdAt),
+    database
+      .select({
+        content: sourcesTable.content,
+        label: sourcesTable.label,
+        type: sourcesTable.type,
+      })
+      .from(sourcesTable)
+      .where(eq(sourcesTable.sessionId, sessionId))
+      .orderBy(desc(sourcesTable.createdAt)),
+    database
+      .select({
+        sections: deliverablesTable.sections,
+        title: deliverablesTable.title,
+      })
+      .from(deliverablesTable)
+      .where(
+        and(
+          eq(deliverablesTable.workspaceId, workspaceId),
+          eq(deliverablesTable.templateType, sessionRow.templateType),
+          ne(deliverablesTable.sessionId, sessionId),
+        ),
+      )
+      .orderBy(desc(deliverablesTable.updatedAt))
+      .limit(REFERENCE_CONTEXT_DELIVERABLE_LIMIT),
+    database
+      .select({
+        createdAt: deliverablesTable.createdAt,
+        id: deliverablesTable.id,
+        sections: deliverablesTable.sections,
+        sessionId: deliverablesTable.sessionId,
+        status: deliverablesTable.status,
+        templateType: deliverablesTable.templateType,
+        title: deliverablesTable.title,
+        updatedAt: deliverablesTable.updatedAt,
+        version: deliverablesTable.version,
+      })
+      .from(deliverablesTable)
+      .where(
+        and(
+          eq(deliverablesTable.workspaceId, workspaceId),
+          eq(deliverablesTable.sessionId, sessionId),
+        ),
+      )
+      .orderBy(desc(deliverablesTable.updatedAt))
+      .limit(1),
+  ]);
 
   const template = getTemplateByType(sessionRow.templateType);
   const generationResult = await generateText({
     model: getChatModel(),
     prompt: buildGenerationPromptContext({
-      latestReferenceDeliverable: latestReferenceRows[0],
+      referenceDeliverables: referenceRows,
       messages: messageRows,
       sessionTitle: sessionRow.title ?? template.name,
       sources: sourceRows,

@@ -67,6 +67,23 @@ function createSessionSummary({
   };
 }
 
+function calculateReadinessPercent(
+  checklist: SessionChecklist,
+  templateType: TemplateType,
+): number {
+  const templateChecklist = getTemplateByType(templateType).checklist;
+  const totalWeight = templateChecklist.reduce((sum, item) => sum + item.weight, 0);
+  const completedWeight = templateChecklist
+    .filter((item) => checklist[item.id] === true)
+    .reduce((sum, item) => sum + item.weight, 0);
+
+  if (totalWeight === 0) {
+    return 0;
+  }
+
+  return Math.round((completedWeight / totalWeight) * 100);
+}
+
 function parseSessionMessageMetadata(metadata: Record<string, unknown>): SessionMessageMetadata {
   return {
     canvas:
@@ -252,6 +269,7 @@ async function getSessionDetailForWorkspace(
     updatedAt: sessionRow.updatedAt,
   });
   const checklist = parsedMetadata.checklist ?? summary.checklist;
+  const readinessPercent = calculateReadinessPercent(checklist, sessionRow.templateType);
 
   return {
     ...summary,
@@ -269,6 +287,7 @@ async function getSessionDetailForWorkspace(
         role: messageRow.role,
       };
     }),
+    readinessPercent,
     recentReferences,
     sources: sourceRows.map((sourceRow) => ({
       content: sourceRow.content,
