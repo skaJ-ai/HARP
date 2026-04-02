@@ -56,21 +56,26 @@ export function WorkspaceHeader({ user }: { user: AuthenticatedUser }) {
   };
 
   return (
-    <header className="bg-[var(--color-bg-elevated)]/92 sticky top-0 z-50 border-b border-[var(--color-border)] px-6 py-4 shadow-[var(--shadow-1)] backdrop-blur-sm">
+    <header className="bg-[var(--color-bg-elevated)]/80 sticky top-0 z-50 border-b border-[var(--color-border-subtle)] px-6 py-4 shadow-[var(--shadow-1)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
-          <Link className="flex flex-col gap-1" href="/workspace">
-            <span className="text-xl font-bold tracking-tight text-[var(--color-accent)]">
-              HARP
-            </span>
-            <span className="text-xs text-[var(--color-text-secondary)]">
-              HR AI Report Platform
-            </span>
+          <Link className="flex items-center gap-2" href="/workspace">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white">
+              <span className="font-bold">H</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold tracking-tight text-[var(--color-accent)]">
+                HARP
+              </span>
+              <span className="text-[10px] font-semibold tracking-wider text-[var(--color-text-secondary)]">
+                HR AI PLATFORM
+              </span>
+            </div>
           </Link>
           <div className="flex items-center gap-3">
             <div className="hidden text-right md:block">
-              <p className="text-sm font-semibold text-[var(--color-text)]">{user.name}</p>
-              <p className="text-xs text-[var(--color-text-secondary)]">{user.workspaceName}</p>
+              <p className="text-sm font-bold text-[var(--color-text)]">{user.name}</p>
+              <p className="text-[10px] text-[var(--color-text-secondary)]">{user.workspaceName}</p>
             </div>
             <button
               className="btn-secondary px-3 py-2 text-xs"

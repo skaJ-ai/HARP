@@ -24,4 +24,6 @@ interface ParsedDeliverableMarkdown {
   sections: DeliverableSection[];
 }
 
-export type { DeliverableDetail, DeliverableSummary, ParsedDeliverableMarkdown };
+type DeliverableTone = 'executive' | 'presentation' | 'working';
+
+export type { DeliverableDetail, DeliverableSummary, DeliverableTone, ParsedDeliverableMarkdown };

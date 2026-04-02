@@ -210,8 +210,12 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
   const [isGenerateSubmitting, setIsGenerateSubmitting] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isSourceSubmitting, setIsSourceSubmitting] = useState(false);
+  const [isFileUploading, setIsFileUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState('');
+  const [fileUploadMessage, setFileUploadMessage] = useState('');
   const [sidebarWidth, setSidebarWidth] = useState(380);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   const [transport] = useState(
@@ -452,6 +456,47 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
     await mutateSession();
   };
 
+  const handleFileUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setIsFileUploading(true);
+    setFileUploadError('');
+    setFileUploadMessage('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const result = await safeFetch<{ message: string }>(
+      `/api/sessions/${initialSession.id}/upload`,
+      {
+        body: formData,
+        method: 'POST',
+      },
+    );
+
+    setIsFileUploading(false);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    if (!result.success) {
+      setFileUploadError(result.error);
+      return;
+    }
+
+    setFileUploadMessage(result.data.message);
+    await mutateSession();
+  };
+
   const handleGenerateClick = async () => {
     if (currentSession.readinessPercent < READINESS_PARTIAL_GENERATE_THRESHOLD) {
       return;
@@ -551,7 +596,9 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
       <article className="workspace-card flex flex-col gap-3" key={section.name}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-[var(--color-text)]">{section.name}</h3>
+            <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
+              {section.name}
+            </h3>
             <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
               {section.description}
             </p>
@@ -712,7 +759,7 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
               <div className="flex max-w-3xl flex-col gap-3">
                 <span className="section-label">Workspace</span>
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-2xl font-semibold tracking-tight text-[var(--color-text)]">
+                  <h2 className="font-headline text-2xl font-bold tracking-tight text-[var(--color-text)]">
                     {currentSession.canvas.title}
                   </h2>
                   <p className="max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">
@@ -856,7 +903,7 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex flex-col gap-1">
                           <p className="meta">Readiness</p>
-                          <h3 className="text-base font-semibold text-[var(--color-text)]">
+                          <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
                             초안 생성 준비도
                           </h3>
                         </div>
@@ -886,7 +933,7 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex flex-col gap-1">
                           <p className="meta">Latest Draft</p>
-                          <h3 className="text-base font-semibold text-[var(--color-text)]">
+                          <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
                             {latestDeliverable?.title ?? currentSession.title}
                           </h3>
                         </div>
@@ -940,7 +987,7 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-col gap-1">
                       <p className="meta">Source</p>
-                      <h3 className="text-base font-semibold text-[var(--color-text)]">
+                      <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
                         근거자료 추가
                       </h3>
                       <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
@@ -997,7 +1044,7 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                 <article className="workspace-card flex flex-col gap-4">
                   <div className="flex flex-col gap-1">
                     <p className="meta">Session Pulse</p>
-                    <h3 className="text-base font-semibold text-[var(--color-text)]">
+                    <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
                       인터뷰 진행 상태
                     </h3>
                   </div>
@@ -1020,6 +1067,49 @@ function SessionCanvas({ initialSession }: SessionCanvasProps) {
                     <p>참고 산출물은 최근 {recentReferences.length}건까지 자동으로 불러옵니다.</p>
                   </div>
                 </article>
+              </div>
+
+              <div className="workspace-card-muted flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <p className="meta">File Upload</p>
+                    <h3 className="font-headline text-base font-bold text-[var(--color-text)]">
+                      파일 업로드
+                    </h3>
+                    <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+                      .txt, .md, .docx 파일을 업로드하면 근거자료로 자동 변환됩니다. (최대 5MB)
+                    </p>
+                  </div>
+                </div>
+
+                {fileUploadError.length > 0 ? (
+                  <div className="border-[var(--color-error)]/20 rounded-[var(--radius-md)] border bg-[var(--color-error-light)] px-4 py-3 text-sm text-[var(--color-error)]">
+                    {fileUploadError}
+                  </div>
+                ) : null}
+
+                {fileUploadMessage.length > 0 ? (
+                  <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-4 py-3 text-sm text-[var(--color-text-secondary)]">
+                    {fileUploadMessage}
+                  </div>
+                ) : null}
+
+                <input
+                  accept=".txt,.md,.docx"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
+                  type="file"
+                />
+
+                <button
+                  className="btn-secondary focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isFileUploading}
+                  onClick={handleFileUploadClick}
+                  type="button"
+                >
+                  {isFileUploading ? '업로드 중...' : '파일 선택'}
+                </button>
               </div>
 
               <section className="flex flex-col gap-4">

@@ -14,7 +14,7 @@ import {
   getSessionPromptContext,
 } from '@/lib/sessions/service';
 
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

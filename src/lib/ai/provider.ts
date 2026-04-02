@@ -12,9 +12,26 @@ function getChatModel() {
     throw new Error('LLM_MODEL is not configured.');
   }
 
+  const apiKey = process.env.LLM_API_KEY?.trim() ?? '';
+  const apiKeyHeader = process.env.LLM_API_KEY_HEADER?.trim() || 'Authorization';
+
   const provider = createOpenAI({
-    apiKey: process.env.LLM_API_KEY ?? 'harp-local',
+    apiKey: apiKey || 'unused',
     baseURL: apiUrl,
+    fetch: async (input, init) => {
+      const headers = new Headers(init?.headers);
+      headers.delete('authorization');
+
+      if (apiKey) {
+        if (apiKeyHeader.toLowerCase() === 'authorization') {
+          headers.set('Authorization', `Bearer ${apiKey}`);
+        } else {
+          headers.set(apiKeyHeader, apiKey);
+        }
+      }
+
+      return globalThis.fetch(input, { ...init, headers });
+    },
     name: 'harp-qwen',
   });
 

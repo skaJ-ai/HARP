@@ -392,19 +392,22 @@
     justify-content: center;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-5);
-    background-color: var(--color-accent);
+    background: linear-gradient(135deg, #00355f 0%, var(--color-accent) 100%);
     color: var(--color-text-inverse);
     border: none;
     border-radius: var(--radius-md);
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 2px 4px rgba(15, 76, 129, 0.12);
     transition:
-      background-color var(--duration-fast),
-      transform var(--duration-fast);
+      opacity var(--duration-fast),
+      transform var(--duration-fast),
+      box-shadow var(--duration-fast);
   }
   .btn-primary:hover {
-    background-color: var(--color-accent-hover);
+    opacity: 0.92;
+    box-shadow: 0 4px 8px rgba(15, 76, 129, 0.2);
     transform: translateY(-1px);
   }
 

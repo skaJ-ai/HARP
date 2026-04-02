@@ -15,4 +15,8 @@ const updateDeliverableRequestSchema = z
     },
   );
 
-export { updateDeliverableRequestSchema };
+const convertToneRequestSchema = z.object({
+  tone: z.enum(['executive', 'working', 'presentation']),
+});
+
+export { convertToneRequestSchema, updateDeliverableRequestSchema };

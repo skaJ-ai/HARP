@@ -128,4 +128,71 @@ function parseSectionMetadata(
   }
 }
 
-export { buildDeliverableMarkdown, buildRenderableDeliverableMarkdown, parseDeliverableMarkdown };
+function reconstructDeliverableMarkdown(
+  editedRenderMarkdown: string,
+  originalSections: DeliverableSection[],
+): string {
+  const normalizedMarkdown = editedRenderMarkdown.replace(/\r\n/g, '\n').trim();
+  const sectionRegex = /^##\s+(.+?)$/gm;
+  const sectionHeaders: { index: number; name: string }[] = [];
+  let headerMatch: RegExpExecArray | null = sectionRegex.exec(normalizedMarkdown);
+
+  while (headerMatch !== null) {
+    sectionHeaders.push({
+      index: headerMatch.index,
+      name: headerMatch[1]?.trim() ?? '',
+    });
+    headerMatch = sectionRegex.exec(normalizedMarkdown);
+  }
+
+  const metadataByName = new Map<
+    string,
+    { cited: boolean; confidence: DeliverableSection['confidence'] }
+  >();
+
+  for (const section of originalSections) {
+    metadataByName.set(section.name, {
+      cited: section.cited,
+      confidence: section.confidence,
+    });
+  }
+
+  const parts: string[] = [];
+  const titleLine = normalizedMarkdown
+    .slice(0, sectionHeaders[0]?.index ?? normalizedMarkdown.length)
+    .trim();
+
+  if (titleLine.length > 0) {
+    parts.push(titleLine);
+  }
+
+  for (let i = 0; i < sectionHeaders.length; i++) {
+    const current = sectionHeaders[i];
+
+    if (!current) {
+      continue;
+    }
+
+    const nextIndex = sectionHeaders[i + 1]?.index ?? normalizedMarkdown.length;
+    const sectionBlock = normalizedMarkdown.slice(current.index, nextIndex).trim();
+    const headerEnd = sectionBlock.indexOf('\n');
+    const headerLine = headerEnd === -1 ? sectionBlock : sectionBlock.slice(0, headerEnd);
+    const content = headerEnd === -1 ? '' : sectionBlock.slice(headerEnd + 1).trim();
+    const metadata = metadataByName.get(current.name) ?? {
+      cited: false,
+      confidence: 'low' as const,
+    };
+    const metaComment = `<!-- section-meta:${JSON.stringify({ confidence: metadata.confidence, cited: metadata.cited })} -->`;
+
+    parts.push([headerLine, metaComment, content].filter((value) => value.length > 0).join('\n'));
+  }
+
+  return parts.join('\n\n');
+}
+
+export {
+  buildDeliverableMarkdown,
+  buildRenderableDeliverableMarkdown,
+  parseDeliverableMarkdown,
+  reconstructDeliverableMarkdown,
+};

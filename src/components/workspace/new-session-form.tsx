@@ -24,7 +24,7 @@ interface CreateSessionResponse {
   };
 }
 
-const BADGE_COLOR_CLASS_MAP: Record<TemplateBadgeColor, string> = {
+const _BADGE_COLOR_CLASS_MAP: Record<TemplateBadgeColor, string> = {
   amber: 'badge-amber',
   blue: 'badge-blue',
   gray: 'badge-gray',
@@ -109,8 +109,10 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
 
     return (
       <button
-        className={`surface-interactive flex h-full flex-col items-start gap-4 p-6 text-left ${
-          isSelected ? 'ring-2 ring-[var(--color-accent)]' : ''
+        className={`workspace-card group flex h-full flex-col p-6 text-left transition-all ${
+          isSelected
+            ? 'border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]'
+            : 'hover:-translate-y-1 hover:border-[var(--color-accent)] hover:shadow-lg'
         } ${isDisabled ? 'opacity-40' : ''}`}
         data-template-type={template.type}
         disabled={isCreating || isDisabled}
@@ -118,68 +120,65 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
         onClick={handleTemplateSelect}
         type="button"
       >
-        <div className="flex w-full items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-[var(--color-text)]">{template.name}</h2>
-          <span className={`badge ${BADGE_COLOR_CLASS_MAP[template.badge.color]}`}>
+        <div className="mb-4 flex w-full items-start justify-between gap-3">
+          <span
+            className={`meta rounded border px-2 py-1 uppercase tracking-widest ${isSelected ? 'border-[var(--color-accent)] bg-[var(--color-accent-light)] text-[var(--color-accent)]' : 'border-[var(--color-border-strong)] bg-[var(--color-bg-sunken)]'}`}
+          >
             {template.badge.label}
+          </span>
+          <span className="flex items-center gap-1 rounded-full bg-[var(--color-bg-sunken)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-secondary)]">
+            <span className="material-symbols-outlined text-[12px]">schedule</span>
+            {`${template.estimatedMinutes} min`}
           </span>
         </div>
 
-        <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+        <h3
+          className={`font-headline mb-2 text-lg font-bold transition-colors group-hover:text-[var(--color-accent)] ${isSelected ? 'text-[var(--color-accent)]' : 'text-[var(--color-text)]'}`}
+        >
+          {template.name}
+        </h3>
+        <p className="mb-6 flex-grow text-sm leading-relaxed text-[var(--color-text-secondary)]">
           {template.description}
         </p>
 
-        <div className="flex flex-wrap gap-2">
-          {template.exampleTags.map((tag) => (
-            <span
-              className="rounded-full bg-[var(--color-bg-sunken)] px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)]"
-              key={tag}
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
-
-        <div className="mt-auto flex w-full items-center justify-between gap-3 pt-2">
-          <span className="text-sm font-medium text-[var(--color-accent)]">
-            {isSelected ? '선택됨' : '이 유형으로 시작'}
-          </span>
-          <span className="badge badge-neutral">{`${template.estimatedMinutes}분`}</span>
+        <div className="w-full border-t border-[var(--color-border-subtle)] pt-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+            Sections Included
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {template.exampleTags.map((tag) => (
+              <span
+                className="rounded border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-2 py-0.5 text-[10px] text-[var(--color-text-secondary)]"
+                key={tag}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       </button>
     );
   }
 
   return (
-    <section className="surface flex flex-col gap-6 p-8 shadow-[var(--shadow-2)]">
-      <div className="flex flex-col gap-2">
-        <span className="section-label">New Session</span>
-        <h1 className="text-3xl font-bold text-[var(--color-text)]">어떤 작업을 하시나요?</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          유형을 고르면 HARP가 먼저 질문을 시작하고, 인터뷰 캔버스와 문서 초안이 함께 열립니다.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-8">
       {errorMessage.length > 0 ? (
         <div className="border-[var(--color-error)]/20 rounded-[var(--radius-md)] border bg-[var(--color-error-light)] px-4 py-3 text-sm text-[var(--color-error)]">
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">{templates.map(renderTemplateCard)}</div>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {templates.map(renderTemplateCard)}
+      </div>
 
       {selectedTemplate ? (
-        <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)] p-6">
+        <div className="workspace-card-muted mt-4">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-semibold text-[var(--color-text)]">
-                  참고할 예시 문서가 있나요?
-                </span>
-                <span className={`badge ${BADGE_COLOR_CLASS_MAP[selectedTemplate.badge.color]}`}>
-                  {selectedTemplate.badge.label}
-                </span>
-              </div>
+              <h3 className="text-lg font-bold text-[var(--color-text)]">
+                참고할 예시 문서가 있나요?
+              </h3>
               <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
                 이전에 쓰셨던 비슷한 보고서를 붙여넣으시면 스타일을 맞춰드립니다. 없으면 건너뛰셔도
                 됩니다.
@@ -187,17 +186,17 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
             </div>
 
             <button
-              className="text-sm text-[var(--color-text-secondary)] underline underline-offset-4"
+              className="text-sm font-semibold text-[var(--color-text-secondary)] underline underline-offset-4 transition hover:text-[var(--color-accent)]"
               disabled={isCreating}
               onClick={handleTemplateDeselect}
               type="button"
             >
-              다른 유형 선택
+              다른 템플릿 고르기
             </button>
           </div>
 
           <textarea
-            className="mb-4 min-h-[180px] w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
+            className="input-surface mb-4 min-h-[180px] w-full resize-none placeholder:text-[var(--color-text-tertiary)]"
             disabled={isCreating}
             maxLength={EXAMPLE_TEXT_MAX_LENGTH}
             onChange={handleExampleTextChange}
@@ -206,13 +205,13 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
           />
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs text-[var(--color-text-tertiary)]">
+            <span className="text-xs font-medium text-[var(--color-text-tertiary)]">
               {`${exampleText.length.toLocaleString()} / ${EXAMPLE_TEXT_MAX_LENGTH.toLocaleString()}자`}
             </span>
 
             <div className="flex flex-wrap items-center gap-3">
               <button
-                className="btn-secondary focus-ring"
+                className="btn-secondary"
                 disabled={isCreating}
                 onClick={handleExampleSkip}
                 type="button"
@@ -220,7 +219,7 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
                 건너뛰고 시작
               </button>
               <button
-                className="btn-teal focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isCreating || exampleText.trim().length === 0}
                 onClick={handleExampleConfirm}
                 type="button"
@@ -231,7 +230,7 @@ function NewSessionForm({ templates }: NewSessionFormProps) {
           </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }
 

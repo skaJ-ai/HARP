@@ -527,11 +527,22 @@ async function getSessionPromptContext({
   };
 }
 
+async function deleteSessionForWorkspace(sessionId: string, workspaceId: string): Promise<boolean> {
+  const database = getDb();
+  const deletedRows = await database
+    .delete(sessionsTable)
+    .where(and(eq(sessionsTable.id, sessionId), eq(sessionsTable.workspaceId, workspaceId)))
+    .returning({ id: sessionsTable.id });
+
+  return deletedRows.length > 0;
+}
+
 export {
   createAssistantMessageForSession,
   createSessionForWorkspace,
   createSourceForSession,
   createUserMessageForSession,
+  deleteSessionForWorkspace,
   getSessionDetailForWorkspace,
   getSessionPromptContext,
   listSessionsByWorkspace,

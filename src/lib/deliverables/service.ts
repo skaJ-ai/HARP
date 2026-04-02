@@ -15,8 +15,9 @@ import {
   buildRenderableDeliverableMarkdown,
   parseDeliverableMarkdown,
 } from './parser';
+import { TONE_LABELS, TONE_SYSTEM_PROMPTS } from './tone-prompts';
 
-import type { DeliverableDetail, DeliverableSummary } from './types';
+import type { DeliverableDetail, DeliverableSummary, DeliverableTone } from './types';
 
 const REFERENCE_CONTEXT_DELIVERABLE_LIMIT = 3;
 const REFERENCE_SECTION_SUMMARY_MAX_LENGTH = 200;
@@ -792,7 +793,106 @@ async function updateDeliverableForWorkspace({
   });
 }
 
+async function convertDeliverableTone({
+  deliverableId,
+  tone,
+  workspaceId,
+}: {
+  deliverableId: string;
+  tone: DeliverableTone;
+  workspaceId: string;
+}): Promise<DeliverableDetail> {
+  const database = getDb();
+  const deliverableRows = await database
+    .select({
+      createdAt: deliverablesTable.createdAt,
+      id: deliverablesTable.id,
+      sections: deliverablesTable.sections,
+      sessionId: deliverablesTable.sessionId,
+      status: deliverablesTable.status,
+      templateType: deliverablesTable.templateType,
+      title: deliverablesTable.title,
+      updatedAt: deliverablesTable.updatedAt,
+      version: deliverablesTable.version,
+    })
+    .from(deliverablesTable)
+    .where(
+      and(eq(deliverablesTable.id, deliverableId), eq(deliverablesTable.workspaceId, workspaceId)),
+    )
+    .limit(1);
+
+  const deliverableRow = deliverableRows[0];
+
+  if (!deliverableRow) {
+    throw new Error('산출물을 찾을 수 없습니다.');
+  }
+
+  const originalMarkdown = buildDeliverableMarkdown(deliverableRow.title, deliverableRow.sections);
+  const toneLabel = TONE_LABELS[tone];
+  const systemPrompt = TONE_SYSTEM_PROMPTS[tone];
+
+  const conversionResult = await generateText({
+    model: getChatModel(),
+    prompt: originalMarkdown,
+    system: systemPrompt,
+    temperature: 0.3,
+  });
+
+  const parsedDeliverable = parseDeliverableMarkdown({
+    rawMarkdown: conversionResult.text,
+    templateType: deliverableRow.templateType,
+  });
+
+  if (!parsedDeliverable) {
+    throw new Error('톤 변환 결과를 해석하지 못했습니다.');
+  }
+
+  const newTitle = `${deliverableRow.title} (${toneLabel})`;
+
+  const createdDeliverables = await database
+    .insert(deliverablesTable)
+    .values({
+      sections: parsedDeliverable.sections,
+      sessionId: deliverableRow.sessionId,
+      status: 'draft',
+      templateType: deliverableRow.templateType,
+      title: newTitle,
+      version: 1,
+      workspaceId,
+    })
+    .returning({
+      createdAt: deliverablesTable.createdAt,
+      id: deliverablesTable.id,
+      sections: deliverablesTable.sections,
+      sessionId: deliverablesTable.sessionId,
+      status: deliverablesTable.status,
+      templateType: deliverablesTable.templateType,
+      title: deliverablesTable.title,
+      updatedAt: deliverablesTable.updatedAt,
+      version: deliverablesTable.version,
+    });
+
+  const createdDeliverable = createdDeliverables[0];
+
+  if (!createdDeliverable) {
+    throw new Error('톤 변환 산출물 저장에 실패했습니다.');
+  }
+
+  return createDeliverableDetail({
+    createdAt: createdDeliverable.createdAt,
+    id: createdDeliverable.id,
+    sections: createdDeliverable.sections,
+    sessionId: createdDeliverable.sessionId,
+    status: createdDeliverable.status,
+    templateType: createdDeliverable.templateType,
+    title: createdDeliverable.title,
+    updatedAt: createdDeliverable.updatedAt,
+    version: createdDeliverable.version,
+  });
+}
+
 export {
+  convertDeliverableTone,
   generateDeliverableForSession,
   getDeliverableDetailForWorkspace,
   getLatestDeliverableSummaryForSession,
